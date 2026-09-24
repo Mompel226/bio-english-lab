@@ -156,8 +156,7 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
 .ledger { border-top: 2px solid var(--ink); }
 .ledger__sum { margin: 0; padding: 12px 0; font-size: 15px; color: var(--ink-2); border-bottom: 1px solid var(--rule); }
 .ledger__note { color: var(--muted); }
-.unit__bars { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-.unit__pct { font: 500 12px/1.2 var(--mono); color: var(--green); white-space: nowrap; }
+.unit__pct { font: 500 12px/1.2 var(--mono); color: var(--green); white-space: nowrap; min-width: 118px; text-align: right; }
 .uprog { display: flex; align-items: center; gap: 12px; margin: 10px 0 0; font-size: 15px; color: var(--ink-2); }
 .uprog b { color: var(--ink); }
 .pbar--big { flex: 0 0 160px; height: 8px; }
@@ -170,12 +169,16 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
 .unit__n { font: 650 30px/1 var(--serif); color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
 .unit__t { display: block; font: 600 18px/1.3 var(--sans); }
 .unit__s { display: block; font-size: 13.5px; color: var(--muted); margin-top: 2px; }
-.unit__bars { display: flex; gap: 6px; }
+/* the four kind bars in one row, each in its kind's colour, then the score — one line, never a column */
+.unit__bars { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
 .unit.is-soon { opacity: .55; }
-.mini { width: 56px; }
-.mini__l { font: 500 10.5px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
-.mini__b { height: 6px; border-radius: 3px; background: var(--paper-3); overflow: hidden; }
+.mini { display: block; width: 62px; }
+.mini__l { font: 500 10px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
+.mini__b { display: block; height: 6px; border-radius: 3px; background: rgba(10, 20, 28, .12); overflow: hidden; }
 .mini__b i { display: block; height: 100%; background: var(--green-2); }
+.mini--describe .mini__b i { background: var(--teal); }
+.mini--explain .mini__b i { background: var(--purple); }
+.mini--plan .mini__b i { background: var(--amber); }
 
 /* ---------- a unit's own page ---------- */
 .uhead { padding: 26px 0 8px; }
@@ -187,9 +190,10 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
 /* list pages use the full width: a topic's four kinds, the words, the command words, in two columns */
 @media (min-width: 900px) {
   .unitpage .kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 0 44px; align-items: start; }
-  .wordsp .words { display: grid; grid-template-columns: 1fr 1fr; gap: 0 44px; }
+  .wordsp .words { columns: 2; column-gap: 44px; }
   .wordsp .frames__l { grid-template-columns: 1fr 1fr; gap: 6px 14px; }
   .guide .cmdgroups { display: grid; grid-template-columns: 1fr 1fr; gap: 0 44px; align-items: start; }
+  .guide .cmdcol { display: grid; align-content: start; }
 }
 .words__i { break-inside: avoid; }
 .kind { padding: 16px 18px 8px; border-top: 3px solid var(--ink); border-radius: 0 0 var(--r) var(--r); margin-bottom: 16px; }
@@ -215,7 +219,10 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
 .set__s { font-size: 14px; color: var(--ink-2); }
 .set__meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 3px; }
 .set__n { font: 400 12.5px/1.3 var(--mono); color: var(--muted); white-space: nowrap; }
+.set__bar { display: flex; align-items: center; gap: 10px; flex: 1 1 150px; min-width: 0; }
 @media (max-width: 480px) { .set__n { white-space: normal; } }
+/* under 900px the two command-word columns fold into one list, back in reading order (1, 2, 3, 4) */
+@media (max-width: 899px) { .guide .cmdgroups { display: flex; flex-direction: column; } .guide .cmdcol { display: contents; } .guide .cgrp { order: var(--o, 0); } }
 .set__go { font-weight: 600; color: var(--green); white-space: nowrap; }
 .pbar { height: 6px; background: rgba(10, 20, 28, .12); border-radius: 3px; overflow: hidden; flex: 1 1 60px; min-width: 60px; max-width: 200px; }
 .pbar i { display: block; height: 100%; background: var(--green-2); }
@@ -475,7 +482,8 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
   .wrap { padding: 0 16px; }
   .unit { grid-template-columns: 44px 1fr; }
   .unit__n { font-size: 24px; }
-  .unit__bars { grid-column: 2; }
+  .unit__bars { grid-column: 2; justify-content: flex-start; }
+  .unit__pct { min-width: 0; text-align: left; flex-basis: 100%; }   /* the score on its own line, every row alike */
   .mini { width: 50px; }
   .card { padding: 14px 12px; border-radius: var(--r); }
   .sent { font-size: 17px; }
