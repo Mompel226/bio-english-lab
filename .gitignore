@@ -1,0 +1,13 @@
+.DS_Store
+Thumbs.db
+
+# The authored masters live in ../bio-english-lab-source/ and are never published:
+# the page ships them scrambled, built by tools/build.mjs.
+*.master.js
+*-Daniel Mompel Riera.*
+*[Cc]onflicted copy*
+
+# test harnesses: built in the repo so they can load the site as same-origin, never shipped
+_*.html
+_*.js
+_staging/
