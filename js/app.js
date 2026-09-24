@@ -201,7 +201,7 @@
         var ids = u.sets.filter(function (s) { return META.sets[s] && META.sets[s].kind === k; });
         if (!ids.length) return;
         var d = 0, t = 0; ids.forEach(function (s) { var x = tally(s); d += x.done; t += x.total; });
-        bars += '<span class="mini"><span class="mini__l">' + KIND_NAME[k] + '</span><span class="mini__b"><i style="width:' + pct(d, t) + '%"></i></span></span>';
+        bars += '<span class="mini mini--' + k + '"><span class="mini__l">' + KIND_NAME[k] + '</span><span class="mini__b"><i style="width:' + pct(d, t) + '%"></i></span></span>';
       });
       var ut = unitTally(uid);
       a.innerHTML = '<span class="unit__n">' + T.esc(u.n) + '</span><span><span class="unit__t">' + T.esc(u.title) + '</span><span class="unit__s">' +
@@ -244,7 +244,7 @@
         a.innerHTML = '<span class="set__main"><span class="set__t">' + T.esc(m.title) + '</span>' +
           (m.blurb ? '<span class="set__s">' + T.esc(m.blurb) + '</span>' : '') +
           '<span class="set__meta"><span class="set__n">' + t.total + ' questions' + mo + '</span>' +
-          '<span class="pbar"><i style="width:' + pct(t.done, t.total) + '%"></i></span><span class="set__pct">' + (t.done ? t.done + ' of ' + t.total + ' · ' + pct(t.done, t.total) + '%' : 'not started') + '</span></span></span>' +
+          '<span class="set__bar"><span class="pbar"><i style="width:' + pct(t.done, t.total) + '%"></i></span><span class="set__pct">' + (t.done ? t.done + ' of ' + t.total + ' · ' + pct(t.done, t.total) + '%' : 'not started') + '</span></span></span></span>' +
           '<span class="set__go">' + (t.done ? (t.done >= t.total ? 'Again' : 'Carry on') : 'Start') + ' →</span>';
         sec.appendChild(a);
       });
@@ -360,9 +360,12 @@
       return '<li><b>' + T.esc(d.name) + '</b><span>' + T.esc(d.what) + '</span><em>' + T.esc(d.cue) + '</em></li>'; }).join('') + '</ol>';
     var pById = {}; G.patterns.forEach(function (p) { pById[p.id] = p; });
     var cByWord = {}; G.commands.forEach(function (c) { cByWord[c.word] = c; });
+    /* two columns that flow on their own: groups 1 and 3 on the left, 2 and 4 on the right, so a short
+       group never leaves a hole under itself; --o keeps the reading order when they fold into one */
     var groups = h('div', 'cmdgroups'); w.appendChild(groups);
-    CMD_GROUPS.forEach(function (grp) {
-      var sec = h('section', 'cgrp'); sec.appendChild(h('h2', 'guide__h', T.esc(grp.title)));
+    var cols = [h('div', 'cmdcol'), h('div', 'cmdcol')]; cols.forEach(function (c) { groups.appendChild(c); });
+    CMD_GROUPS.forEach(function (grp, gi) {
+      var sec = h('section', 'cgrp'); sec.style.setProperty('--o', gi); sec.appendChild(h('h2', 'guide__h', T.esc(grp.title)));
       grp.words.forEach(function (wd) {
         var c = cByWord[wd]; if (!c) return;
         var d = document.createElement('details'); d.className = 'cmd'; d.id = 'cmd-' + wd.toLowerCase();
@@ -377,7 +380,7 @@
         d.innerHTML = body + '</div>';
         sec.appendChild(d);
       });
-      groups.appendChild(sec);
+      cols[gi % 2].appendChild(sec);
     });
     w.appendChild(dec);
     var sy = h('section', 'cgrp');
