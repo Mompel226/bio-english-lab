@@ -161,7 +161,7 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
 .uprog { display: flex; align-items: center; gap: 12px; margin: 10px 0 0; font-size: 15px; color: var(--ink-2); }
 .uprog b { color: var(--ink); }
 .pbar--big { flex: 0 0 160px; height: 8px; }
-.set__pct { display: block; font: 500 12px/1.2 var(--mono); color: var(--green); text-align: right; margin-bottom: 2px; }
+.set__pct { font: 500 12px/1.2 var(--mono); color: var(--green); white-space: nowrap; }
 .ptop__p { margin: 4px 0 0; font-size: 14px; color: var(--ink-2); }
 .who__sync { font: 500 11px/1.2 var(--mono); color: var(--muted); margin-left: 10px; }
 .hw__p { margin: 0 0 8px; font-size: 14px; color: var(--ink-2); }
@@ -192,15 +192,32 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
   .guide .cmdgroups { display: grid; grid-template-columns: 1fr 1fr; gap: 0 44px; align-items: start; }
 }
 .words__i { break-inside: avoid; }
-.kind { padding: 18px 0 6px; border-top: 2px solid var(--ink); }
+.kind { padding: 16px 18px 8px; border-top: 3px solid var(--ink); border-radius: 0 0 var(--r) var(--r); margin-bottom: 16px; }
+/* one colour per kind, the same on every topic, so a student recognises the section at a glance */
+.kind--kw { background: var(--ok-tint); border-top-color: var(--green-2); }
+.kind--describe { background: #E9F3F7; border-top-color: var(--teal); }
+.kind--explain { background: #EFE9F7; border-top-color: var(--purple); }
+.kind--plan { background: #FBF3DF; border-top-color: var(--amber); }
+.kind--kw .set__go, .kind--kw .set__pct, .kind--kw .pbar i { color: var(--green); }
+.kind--describe .set__go, .kind--describe .set__pct { color: var(--teal); } .kind--describe .pbar i { background: var(--teal); }
+.kind--explain .set__go, .kind--explain .set__pct { color: var(--purple); } .kind--explain .pbar i { background: var(--purple); }
+.kind--plan .set__go, .kind--plan .set__pct { color: var(--amber); } .kind--plan .pbar i { background: var(--amber); }
+.player--kw .ptop { border-left: 4px solid var(--green-2); padding-left: 12px; }
+.player--describe .ptop { border-left: 4px solid var(--teal); padding-left: 12px; }
+.player--explain .ptop { border-left: 4px solid var(--purple); padding-left: 12px; }
+.player--plan .ptop { border-left: 4px solid var(--amber); padding-left: 12px; }
 .kind__h { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
 .kind__h h2 { font-size: 26px; }
 .kind__p { margin: 0 0 8px; color: var(--ink-2); font-size: 15.5px; }
-.set { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--rule-2); text-decoration: none; }
+.set { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid rgba(10, 20, 28, .12); text-decoration: none; }
+.set__main { display: grid; gap: 3px; min-width: 0; }
 .set__t { font-weight: 600; }
-.set__s { font-size: 14px; color: var(--muted); }
+.set__s { font-size: 14px; color: var(--ink-2); }
+.set__meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 3px; }
+.set__n { font: 400 12.5px/1.3 var(--mono); color: var(--muted); white-space: nowrap; }
+@media (max-width: 480px) { .set__n { white-space: normal; } }
 .set__go { font-weight: 600; color: var(--green); white-space: nowrap; }
-.pbar { height: 6px; background: var(--paper-3); border-radius: 3px; overflow: hidden; margin-top: 6px; max-width: 240px; }
+.pbar { height: 6px; background: rgba(10, 20, 28, .12); border-radius: 3px; overflow: hidden; flex: 1 1 60px; min-width: 60px; max-width: 200px; }
 .pbar i { display: block; height: 100%; background: var(--green-2); }
 
 /* ---------- the player ---------- */
