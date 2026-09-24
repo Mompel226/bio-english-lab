@@ -515,6 +515,7 @@
     }
     function summary() {
       var t = tally(sid);
+      if (t.done >= t.total) queueSync(sid, true);   /* finished: the records hear at once */
       var d = h('div', 'done');
       d.innerHTML = '<p class="eyebrow">' + T.esc(m.title) + '</p><h2>' + (t.done >= t.total ? 'Set finished.' : 'Not finished yet.') + '</h2>' +
         '<div class="done__nums"><div>' + t.done + '/' + t.total + '<span>answered</span></div><div>' + t.first + '/' + t.total + '<span>right first time</span></div></div>';
@@ -602,8 +603,10 @@
 
   /* ---------- the teacher's spreadsheet ---------- */
   function syncOn() { return !!(CFG.submitUrl && SI); }
-  function post(body) {
-    return fetch(CFG.submitUrl, { method: 'POST', mode: 'cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) })
+  function post(body, leaving) {
+    var opts = { method: 'POST', mode: 'cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) };
+    if (leaving) opts.keepalive = true;          /* the page is going: let the request outlive it */
+    return fetch(CFG.submitUrl, opts)
       .then(function (r) { return r.ok ? r.json() : null; });
   }
   /* what a set looks like as one short string: per question 0 untouched, t tried, 1 right,
@@ -623,12 +626,17 @@
     return syncState === 'saving' ? 'saving…' : syncState === 'failed' ? 'could not save — will retry' : 'saved for your teacher \u2713';
   }
   function setSync(st) { syncState = st; var el = document.getElementById('syncState'); if (el) el.textContent = syncText(); }
-  function queueSync(sid) {
+  /* Two minutes after the last answer, one save carries everything since (`now` sends at once:
+     a set finished, a sign-in, the page being left). Forty pupils on one script is comfortable
+     at that pace; a save the records could not take goes again a minute later. */
+  var SAVE_AFTER = 120000;
+  function queueSync(sid, now) {
     if (!syncOn() || !me) return;
     pending[sid] = true;
-    clearTimeout(syncTimer); syncTimer = setTimeout(flush, 2500);
+    if (now) { clearTimeout(syncTimer); syncTimer = null; flush(); return; }
+    if (!syncTimer) syncTimer = setTimeout(function () { syncTimer = null; flush(); }, SAVE_AFTER);
   }
-  function flush() {
+  function flush(leaving) {
     var ids = Object.keys(pending); if (!ids.length) return;
     var live = SI.live();
     if (!live) { SI.renew(CID, function (v) { if (v) flush(); }); return; }
@@ -636,11 +644,12 @@
     setSync('saving');
     var sets = {};
     ids.forEach(function (sid) { var t = tally(sid); sets[sid] = { done: t.done, first: t.first, total: t.total, snap: snap(sid), v: META.sets[sid].v }; });
-    post({ action: 'english.save', token: live.token, sets: sets, at: new Date().toISOString() })
-      .then(function (j) { if (!j || !j.ok) { ids.forEach(function (s) { pending[s] = true; }); setSync('failed'); if (j && j.why && j.why !== 'not signed in') toast('Your progress was not recorded: ' + j.why); } else setSync('saved'); })
+    post({ action: 'english.save', token: live.token, sets: sets, at: new Date().toISOString() }, leaving)
+      .then(function (j) { if (!j || !j.ok) { ids.forEach(function (s) { pending[s] = true; }); setSync('failed'); clearTimeout(syncTimer); syncTimer = setTimeout(function () { syncTimer = null; flush(); }, 60000); if (j && j.why && j.why !== 'not signed in') toast('Your progress was not recorded: ' + j.why); } else setSync('saved'); })
       .catch(function () { ids.forEach(function (s) { pending[s] = true; }); setSync('failed'); });
   }
-  addEventListener('pagehide', function () { if (Object.keys(pending).length) flush(); });
+  addEventListener('pagehide', function () { if (Object.keys(pending).length) flush(true); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && Object.keys(pending).length) flush(true); });
   function fetchMine() {
     if (!syncOn() || !me) return;
     var live = SI.live();
@@ -668,9 +677,8 @@
       if (added) { save(); toast('Your answers from another computer are back.'); }
       /* and the other way: work done in this browser before signing in has never been sent —
          queue every set with an answer in it (the server merge only ever adds, so nothing is lost) */
-      Object.keys(P.sets).forEach(function (sid) {
-        var r = P.sets[sid]; if (META.sets[sid] && r && r.items && Object.keys(r.items).length) queueSync(sid);
-      });
+      var toSend = Object.keys(P.sets).filter(function (sid) { var r = P.sets[sid]; return META.sets[sid] && r && r.items && Object.keys(r.items).length; });
+      toSend.forEach(function (sid, i) { queueSync(sid, i === toSend.length - 1); });
       route();
     }).catch(function () {});
   }
