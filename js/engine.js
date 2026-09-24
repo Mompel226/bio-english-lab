@@ -237,8 +237,12 @@
         if (p.why) pair.appendChild(h('p', 'pair__why', T.tags(p.why)));
         b.appendChild(pair);
       } else if (p.steps) {
+        /* a step is a string, or { t, ex }: the example folds away behind "Example", so the list stays short */
         var ol = h('ol', 'steps');
-        p.steps.forEach(function (s) { ol.appendChild(h('li', '', T.tags(s))); });
+        p.steps.forEach(function (s) {
+          if (typeof s === 'string') { ol.appendChild(h('li', '', T.tags(s))); return; }
+          ol.appendChild(h('li', '', T.tags(s.t) + (s.ex ? '<details class="exfold"><summary>Example</summary><p class="exfold__p">' + T.tags(s.ex) + '</p></details>' : '')));
+        });
         b.appendChild(ol);
       } else if (p.legend) {
         b.appendChild(legend());
