@@ -666,6 +666,11 @@
         });
       });
       if (added) { save(); toast('Your answers from another computer are back.'); }
+      /* and the other way: work done in this browser before signing in has never been sent —
+         queue every set with an answer in it (the server merge only ever adds, so nothing is lost) */
+      Object.keys(P.sets).forEach(function (sid) {
+        var r = P.sets[sid]; if (META.sets[sid] && r && r.items && Object.keys(r.items).length) queueSync(sid);
+      });
       route();
     }).catch(function () {});
   }
