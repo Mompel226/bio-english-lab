@@ -57,6 +57,9 @@
     return { done: done, first: first, total: (m.keys || []).length };
   }
   function pct(a, b) { return b ? Math.round(100 * a / b) : 0; }
+  /* how far a student is through a topic, or a whole year: answered, out of all its questions */
+  function unitTally(uid) { var u = META.units[uid], d = 0, t = 0; if (u) u.sets.forEach(function (s) { var x = tally(s); d += x.done; t += x.total; }); return { done: d, total: t }; }
+  function yearTally(Y) { var d = 0, t = 0; (Y.units || []).forEach(function (uid) { var x = unitTally(uid); d += x.done; t += x.total; }); return { done: d, total: t }; }
 
   /* ---------- small helpers ---------- */
   function h(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
@@ -186,6 +189,9 @@
     host.innerHTML = '';
     var Y = META.years.filter(function (x) { return x.y === y; })[0];
     if (!Y) return;
+    var yt = yearTally(Y);
+    host.appendChild(h('p', 'ledger__sum', '<b>' + T.esc(Y.title) + ':</b> ' + yt.done + ' of ' + yt.total + ' questions answered (' + pct(yt.done, yt.total) + '%)' +
+      (me ? '' : ' \u00b7 <span class="ledger__note">Kept in this browser. Sign in with your school account and it is recorded for your teacher.</span>')));
     Y.units.forEach(function (uid) {
       var u = META.units[uid]; if (!u) return;
       var a = h('a', 'unit' + (u.sets.length ? '' : ' is-soon'));
@@ -197,8 +203,10 @@
         var d = 0, t = 0; ids.forEach(function (s) { var x = tally(s); d += x.done; t += x.total; });
         bars += '<span class="mini"><span class="mini__l">' + KIND_NAME[k] + '</span><span class="mini__b"><i style="width:' + pct(d, t) + '%"></i></span></span>';
       });
+      var ut = unitTally(uid);
       a.innerHTML = '<span class="unit__n">' + T.esc(u.n) + '</span><span><span class="unit__t">' + T.esc(u.title) + '</span><span class="unit__s">' +
-        (u.sets.length ? u.sets.length + ' sets · ' + u.count + ' questions' : 'Coming soon') + '</span></span><span class="unit__bars">' + bars + '</span>';
+        (u.sets.length ? u.sets.length + ' sets · ' + u.count + ' questions' : 'Coming soon') + '</span></span>' +
+        '<span class="unit__bars">' + bars + '<span class="unit__pct">' + (ut.done ? ut.done + ' of ' + ut.total + ' · ' + pct(ut.done, ut.total) + '%' : 'Not started') + '</span></span>';
       host.appendChild(a);
     });
   }
@@ -215,6 +223,8 @@
     w.appendChild(h('a', 'back', '← Year ' + Y + ' topics')).href = '#/y' + Y;
     var head = h('header', 'uhead');
     head.innerHTML = '<p class="eyebrow">Topic ' + T.esc(u.n) + ' · Year ' + Y + (u.syl ? ' · syllabus ' + T.esc(u.syl) : '') + '</p><h1 class="uhead__t">' + T.esc(u.title) + '</h1>';
+    var ut = unitTally(uid);
+    if (ut.total) head.appendChild(h('p', 'uprog', '<span class="pbar pbar--big"><i style="width:' + pct(ut.done, ut.total) + '%"></i></span><b>' + ut.done + ' of ' + ut.total + '</b> questions answered in this topic · ' + pct(ut.done, ut.total) + '%'));
     w.appendChild(head);
     var W = (META.words || {})[uid];
     var FR = (META.frames || {})[uid] || [];
@@ -231,7 +241,7 @@
         var a = h('a', 'set'); a.href = '#/s/' + sid;
         var mo = m.modes && (m.modes.data || m.modes.theory) ? ' · ' + (m.modes.theory ? m.modes.theory + ' from theory' : '') + (m.modes.theory && m.modes.data ? ', ' : '') + (m.modes.data ? m.modes.data + ' from data' : '') : '';
         a.innerHTML = '<span><span class="set__t">' + T.esc(m.title) + '</span><br><span class="set__s">' + T.esc(m.blurb || '') + ' · ' + t.total + ' questions' + mo + '</span>' +
-          '<span class="pbar"><i style="width:' + pct(t.done, t.total) + '%"></i></span></span><span class="set__go">' + (t.done ? (t.done >= t.total ? 'Again' : 'Carry on') : 'Start') + ' →</span>';
+          '<span class="pbar"><i style="width:' + pct(t.done, t.total) + '%"></i></span></span><span class="set__go"><span class="set__pct">' + (t.done ? t.done + ' of ' + t.total + ' · ' + pct(t.done, t.total) + '%' : '') + '</span>' + (t.done ? (t.done >= t.total ? 'Again' : 'Carry on') : 'Start') + ' →</span>';
         sec.appendChild(a);
       });
       kinds.appendChild(sec);
@@ -441,6 +451,7 @@
     w.appendChild(back);
     var top = h('div', 'ptop');
     top.appendChild(h('p', 'ptop__t', T.esc(m.title)));
+    var prog = h('p', 'ptop__p'); top.appendChild(prog);
     w.appendChild(top);
     var dots = h('div', 'dots'); w.appendChild(dots);
     var stage = h('div', 'stage'); w.appendChild(stage);
@@ -453,6 +464,8 @@
       return items.length;     /* all done: the summary */
     }
     function paintDots() {
+      var pt = tally(sid);
+      prog.innerHTML = '<b>' + pt.done + ' of ' + pt.total + '</b> answered' + (pt.first ? ' · ' + pt.first + ' right first time' : '') + ' · ' + pct(pt.done, pt.total) + '%';
       dots.innerHTML = '';
       items.forEach(function (it, i) {
         var s = r.items[key(it)] || {};
@@ -529,7 +542,7 @@
     if (!SI || !CID) { btn.hidden = true; card.hidden = true; return; }
     if (me) {
       btn.hidden = true; card.hidden = false;
-      card.innerHTML = '<span>Signed in as <b>' + T.esc((me.name || me.email).split(' ')[0]) + '</b></span>' +
+      card.innerHTML = '<span>Signed in as <b>' + T.esc((me.name || me.email).split(' ')[0]) + '</b></span><span class="who__sync" id="syncState">' + T.esc(syncText()) + '</span>' +
         (server && server.teacher && server.teacherPage ? '<a class="who__t" href="' + T.esc(server.teacherPage) + '" target="_blank" rel="noopener">Teacher page</a>' : '');
       var out = h('button', 'who__out', 'Sign out'); out.type = 'button';
       out.addEventListener('click', function () { SI.out(); });
@@ -593,6 +606,16 @@
     return (m.keys || []).map(function (k) { var s = r.items[k]; return !s ? '0' : s.first ? 'f' : s.ok ? '1' : s.shown ? 's' : s.t ? 't' : '0'; }).join('');
   }
   var pending = {}, syncTimer = null;
+  /* what the sign-in card says about recording: a student must be able to see that their work
+     reaches their teacher — there is no hand-in button, saving is automatic */
+  var syncState = 'idle';   /* idle · saving · saved · failed · off */
+  function syncText() {
+    if (!syncOn()) return 'progress kept in this browser';
+    if (!server) return 'recording…';
+    if (!server.onList) return 'not on a class list yet — kept in this browser';
+    return syncState === 'saving' ? 'saving…' : syncState === 'failed' ? 'could not save — will retry' : 'saved for your teacher \u2713';
+  }
+  function setSync(st) { syncState = st; var el = document.getElementById('syncState'); if (el) el.textContent = syncText(); }
   function queueSync(sid) {
     if (!syncOn() || !me) return;
     pending[sid] = true;
@@ -603,11 +626,12 @@
     var live = SI.live();
     if (!live) { SI.renew(CID, function (v) { if (v) flush(); }); return; }
     pending = {};
+    setSync('saving');
     var sets = {};
     ids.forEach(function (sid) { var t = tally(sid); sets[sid] = { done: t.done, first: t.first, total: t.total, snap: snap(sid), v: META.sets[sid].v }; });
     post({ action: 'english.save', token: live.token, sets: sets, at: new Date().toISOString() })
-      .then(function (j) { if (!j || !j.ok) { ids.forEach(function (s) { pending[s] = true; }); if (j && j.why && j.why !== 'not signed in') toast('Your progress was not recorded: ' + j.why); } })
-      .catch(function () { ids.forEach(function (s) { pending[s] = true; }); });
+      .then(function (j) { if (!j || !j.ok) { ids.forEach(function (s) { pending[s] = true; }); setSync('failed'); if (j && j.why && j.why !== 'not signed in') toast('Your progress was not recorded: ' + j.why); } else setSync('saved'); })
+      .catch(function () { ids.forEach(function (s) { pending[s] = true; }); setSync('failed'); });
   }
   addEventListener('pagehide', function () { if (Object.keys(pending).length) flush(); });
   function fetchMine() {
@@ -615,8 +639,9 @@
     var live = SI.live();
     if (!live) { SI.renew(CID, function (v) { if (v) fetchMine(); }); return; }
     post({ action: 'english.mine', token: live.token }).then(function (j) {
-      if (!j || !j.ok) return;
+      if (!j || !j.ok) { setSync('failed'); return; }
       server = j;
+      setSync(syncState === 'saving' ? 'saving' : 'saved');
       paintWho();
       /* bring back progress made on another computer: only ever adds */
       var added = 0;
@@ -642,6 +667,7 @@
     if (!server || !server.homework || !server.homework.length) return;
     var box = h('section', 'hw');
     box.appendChild(h('h2', 'hw__h', 'Your homework'));
+    box.appendChild(h('p', 'hw__p', 'Your answers are saved for your teacher as you go. There is nothing to hand in: when a set reaches 100%, it is done.'));
     server.homework.forEach(function (hw) {
       var row = h('div', 'hw__row');
       var d = 0, t = 0;

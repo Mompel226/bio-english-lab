@@ -154,6 +154,17 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
 .ytab { border: 1px solid var(--rule); background: var(--card); border-radius: var(--pill); padding: 9px 18px; font-weight: 600; cursor: pointer; min-height: 44px; }
 .ytab.is-on { background: var(--ink); color: #fff; border-color: var(--ink); }
 .ledger { border-top: 2px solid var(--ink); }
+.ledger__sum { margin: 0; padding: 12px 0; font-size: 15px; color: var(--ink-2); border-bottom: 1px solid var(--rule); }
+.ledger__note { color: var(--muted); }
+.unit__bars { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.unit__pct { font: 500 12px/1.2 var(--mono); color: var(--green); white-space: nowrap; }
+.uprog { display: flex; align-items: center; gap: 12px; margin: 10px 0 0; font-size: 15px; color: var(--ink-2); }
+.uprog b { color: var(--ink); }
+.pbar--big { flex: 0 0 160px; height: 8px; }
+.set__pct { display: block; font: 500 12px/1.2 var(--mono); color: var(--green); text-align: right; margin-bottom: 2px; }
+.ptop__p { margin: 4px 0 0; font-size: 14px; color: var(--ink-2); }
+.who__sync { font: 500 11px/1.2 var(--mono); color: var(--muted); margin-left: 10px; }
+.hw__p { margin: 0 0 8px; font-size: 14px; color: var(--ink-2); }
 .unit { display: grid; grid-template-columns: 64px 1fr auto; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--rule); text-decoration: none; }
 .unit:hover .unit__t, .unit:focus-visible .unit__t { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
 .unit__n { font: 650 30px/1 var(--serif); color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
