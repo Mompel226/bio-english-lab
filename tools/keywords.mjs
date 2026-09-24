@@ -71,7 +71,14 @@ if (cmd === 'import') {
     ' * definition corrected there is corrected here. Edit the master, not this file.\n';
   let header = m.GS_HEADER;
   header = header.replace(/ \* ─{10,}\s*\*\/\s*$/, note + ' * ─────────────────────────────────────────────────────────────────\n */\n');
-  const text = header + '\nvar IGCSE_TOPICS = ' + JSON.stringify(m.TOPICS, null, 2).replace(/"(\w+)":/g, '$1:') + ';\n\n' +
+/* Daniel's copyright block, the same one every file in his reflection project carries */
+  const COPYRIGHT_GS = ['// ============================================================',
+    '//  IGCSE Biology Assessment Reflection System — IGCSE Biology Keywords (generated)',
+    '//  Copyright (c) 2025-2026 Daniel Mompel Riera',
+    '//  All rights reserved. This code is proprietary and confidential.',
+    '//  Unauthorised copying, distribution, or modification is prohibited.',
+    '// ============================================================', '', ''].join('\n');
+  const text = COPYRIGHT_GS + header + '\nvar IGCSE_TOPICS = ' + JSON.stringify(m.TOPICS, null, 2).replace(/"(\w+)":/g, '$1:') + ';\n\n' +
     'var IGCSE_BIOLOGY_KEYWORDS = [\n' + m.KEYWORDS.map(k => '  ' + jsLit(ordered(k)).replace(/"(\w+)":/g, '$1:')).join(',\n\n') + '\n];\n';
   /* the copy must load exactly as the old one did */
   const back = new Function(text + '; return { K: IGCSE_BIOLOGY_KEYWORDS, T: IGCSE_TOPICS };')();
