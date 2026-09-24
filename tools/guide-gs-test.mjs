@@ -7,12 +7,16 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const OUT = path.resolve(HERE, '..', '..', 'bio-english-lab-source', 'out', 'reflection');
-const ORIG = process.argv[2];
+/* the generator writes into Daniel's two reflection folders; read the same place (out/reflection is the fallback) */
+const REFLECT = ['/Users/NLCS/Library/CloudStorage/OneDrive-Personal/NLCS/IGCSE/AppScript/AppScript REFLECTION System/Claude code',
+  '/Users/NLCS/Library/CloudStorage/OneDrive-Personal/NLCS/IGCSE/AppScript/AppScript REFLECTION System/Final code']
+  .filter(d => fs.existsSync(path.join(d, '6_QuestionGuide.gs')));
+const OUT = REFLECT[0] || path.resolve(HERE, '..', '..', 'bio-english-lab-source', 'out', 'reflection');
+const ORIG = process.argv[2];   /* optional: the patched dashboard keeps the original cards and renderer */
 let fail = 0; const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) fail++; };
 const guide = fs.readFileSync(path.join(OUT, '6_QuestionGuide.gs'), 'utf8');
 const patched = fs.readFileSync(path.join(OUT, '4_StudentDashboardHTML.gs'), 'utf8');
-const orig = fs.readFileSync(ORIG, 'utf8');
+const orig = ORIG ? fs.readFileSync(ORIG, 'utf8') : patched;
 try { new Function(guide); ok(true, '6_QuestionGuide.gs compiles'); } catch (e) { ok(false, '6_QuestionGuide.gs: ' + e.message); }
 try { new Function(patched); ok(true, 'the patched 4_StudentDashboardHTML.gs compiles'); } catch (e) { ok(false, 'patched dashboard: ' + e.message); }
 function block(src, start) {

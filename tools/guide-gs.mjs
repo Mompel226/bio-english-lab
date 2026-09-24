@@ -35,9 +35,12 @@ function writeReflection(name, text) {
 }
 const G = JSON.parse(fs.readFileSync(path.join(SRC, 'guide.master.json'), 'utf8'));
 const dashPath = process.argv[2];
-if (!dashPath) { console.error('usage: node tools/guide-gs.mjs <4_StudentDashboardHTML.gs>'); process.exit(1); }
-const dash = fs.readFileSync(dashPath, 'utf8');
-if (/BIO ENGLISH LAB EDITS APPLIED/.test(dash)) {
+if (!dashPath) { console.error('usage: node tools/guide-gs.mjs <4_StudentDashboardHTML.gs> | --guide-only'); process.exit(1); }
+/* --guide-only: the guide's text changed but the dashboard's 13 edits are already in place — write
+   6_QuestionGuide.gs alone and leave the dashboard untouched */
+const guideOnly = dashPath === '--guide-only';
+const dash = guideOnly ? '' : fs.readFileSync(dashPath, 'utf8');
+if (!guideOnly && /BIO ENGLISH LAB EDITS APPLIED/.test(dash)) {
   console.error('That dashboard already carries these edits — it is the patched file, not the original.\n' +
     'Point this at an unpatched 4_StudentDashboardHTML.gs, or take the previous version from OneDrive history.');
   process.exit(1);
@@ -126,6 +129,7 @@ function qsGuideLegacy_(old) {
 }
 `;
 writeReflection('6_QuestionGuide.gs', gs);
+if (guideOnly) { console.log('guide only — the dashboard is untouched'); process.exit(0); }
 
 /* Applying the edits twice is impossible by construction — each `from` is gone after the first
    pass — but the error would be cryptic. The written file carries a marker, and finding it here
