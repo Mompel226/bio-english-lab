@@ -90,6 +90,7 @@ function checkItem(it, where) {
   if (T !== 'learn' && T !== 'kw' && !it.src) bad(where, 'no src — every question names the paper or syllabus statement it is based on');
   if (T !== 'learn' && T !== 'kw' && !it.q && !it.task) bad(where, 'no question and no task');
   if (NEEDS_MODEL.has(T) && !(it.model && it.model.length)) bad(where, 'no model answer');
+  if (it.mode != null && it.mode !== 'data' && it.mode !== 'theory') bad(where, "mode must be 'data' or 'theory'");
   /* the two syllabus fields: a sentence each, tagged like any other text */
   ['older', 'deeper'].forEach(k => {
     if (it[k] == null) return;
@@ -334,17 +335,25 @@ KEYWORDS.forEach(k => { if (k.en) known.add(k.en); });
 const shipped = {};
 let totalQ = 0;
 for (const s of Object.values(SETS)) {
+  /* A describe or explain question is about DATA (a graph or a table) or about THEORY, and the card
+     says which: a student who only ever saw the data kind would think that is what the word means.
+     `mode:` on the item overrides; otherwise a figure, or a stem that names one, means data. */
+  const DATA_STEM = /\b(graph|table|figure|fig\.|curve|line [A-Z]\b|axis|axes|plot|the data|the results|percentage change|from the information)\b/i;
+  const modeOf = it => it.mode || ((it.figure || DATA_STEM.test(String(it.q || '') + ' ' + String(it.task || ''))) ? 'data' : 'theory');
   const items = s.items.map(it => {
-    const x = (it.type === 'kw' && !it.ko && koFor(it.key)) ? { ...it, ko: koFor(it.key) } : it;
+    let x = (it.type === 'kw' && !it.ko && koFor(it.key)) ? { ...it, ko: koFor(it.key) } : it;
+    if ((s.kind === 'describe' || s.kind === 'explain' || s.kind === 'method') && it.type !== 'learn' && /^(Describe|Explain)/i.test(String(it.cmd || ''))) x = { ...x, mode: modeOf(it) };
     return { ...x, h: fnv(canon(x)) };
   });
+  const modes = { data: 0, theory: 0 };
+  items.forEach(it => { if (it.mode) modes[it.mode]++; });
   items.forEach(it => {
     if (it.type === 'kw') { known.add(it.key); (it.accept || []).forEach(a => known.add(a)); (it.opts || []).forEach(a => known.add(a)); }
     if (it.type === 'gap' || it.type === 'exam') ((it.text || '') + (it.frames || []).join(' ')).replace(/\{\{([^}]+)\}\}/g, (_, a) => { a.split('|').forEach(x => known.add(x.trim())); return ''; });
   });
   const keys = items.filter(it => it.type !== 'learn').map(it => it.id + '@' + it.h);
   totalQ += keys.length;
-  meta.sets[s.id] = { id: s.id, unit: s.unit || null, kind: s.kind, title: s.title, blurb: s.blurb || '', keys, v: fnv(keys.join('|')) };
+  meta.sets[s.id] = { id: s.id, unit: s.unit || null, kind: s.kind, title: s.title, blurb: s.blurb || '', keys, v: fnv(keys.join('|')), modes };
   shipped[s.id] = scramble({ id: s.id, items });
 }
 for (const [uid, u] of Object.entries(UNITS)) {

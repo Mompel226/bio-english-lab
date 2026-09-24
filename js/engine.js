@@ -101,6 +101,8 @@
     var top = h('div', 'card__top');
     top.appendChild(h('span', 'card__kind', KIND[item.type] || item.type));
     if (item.cmd) top.appendChild(h('span', 'card__cmd', T.esc(item.cmd)));
+    /* which kind of describe or explain this is, because the two want different sentences */
+    if (item.mode) top.appendChild(h('span', 'card__mode card__mode--' + item.mode, item.mode === 'data' ? 'from data' : 'from theory'));
     if (item.older) top.appendChild(h('span', 'card__old', 'Older syllabus'));
     card.appendChild(top);
     if (item.q) {

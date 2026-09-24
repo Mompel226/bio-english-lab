@@ -69,8 +69,8 @@
   var KIND_NAME = { kw: 'Keywords', describe: 'Describe', explain: 'Explain', plan: 'Plan', method: 'Method' };
   var KIND_BLURB = {
     kw: 'The words the mark scheme is looking for. First choose them, then write them.',
-    describe: 'Say what happens: the trend, the numbers with units, the comparison. No reasons.',
-    explain: 'Say why: each feature linked to what it does, with “so” or “because”.',
+    describe: 'Say what happens, never why. From theory: a process or a structure, step by step. From data: the trend, the numbers with units, the comparison.',
+    explain: 'Give the reason. From theory: each feature linked to what it does, with “so” or “because”. From data: what the data shows, then why.',
     plan: 'Change one thing, measure one thing, keep the rest the same, repeat, stay safe.'
   };
 
@@ -124,7 +124,9 @@
       var a = h('a', 'method');
       a.href = '#/s/' + m.set;
       a.innerHTML = '<span class="method__n">0' + (i + 1) + ' · ' + T.esc(m.when) + '</span><span class="method__h">' + T.esc(m.title) + '</span>' +
-        '<p class="method__f">' + T.esc(m.formula) + '</p><p class="method__ex">' + T.tags(m.example) + '</p>' +
+        '<p class="method__f">' + T.esc(m.formula) + '</p>' +
+        ((m.kinds || []).length ? '<ul class="method__kinds">' + m.kinds.map(function (k) { return '<li><b>' + T.esc(k.k) + '</b> ' + T.esc(k.f) + '</li>'; }).join('') + '</ul>' : '') +
+        '<p class="method__ex">' + T.tags(m.example) + '</p>' +
         '<span class="method__go">' + (t.done ? (t.done >= t.total ? 'Done — go again' : 'Carry on (' + t.done + '/' + t.total + ')') : 'Learn it') + ' →</span>';
       grid.appendChild(a);
     });
@@ -217,7 +219,8 @@
       ids.forEach(function (sid) {
         var m = META.sets[sid], t = tally(sid);
         var a = h('a', 'set'); a.href = '#/s/' + sid;
-        a.innerHTML = '<span><span class="set__t">' + T.esc(m.title) + '</span><br><span class="set__s">' + T.esc(m.blurb || '') + ' · ' + t.total + ' questions</span>' +
+        var mo = m.modes && (m.modes.data || m.modes.theory) ? ' · ' + (m.modes.theory ? m.modes.theory + ' from theory' : '') + (m.modes.theory && m.modes.data ? ', ' : '') + (m.modes.data ? m.modes.data + ' from data' : '') : '';
+        a.innerHTML = '<span><span class="set__t">' + T.esc(m.title) + '</span><br><span class="set__s">' + T.esc(m.blurb || '') + ' · ' + t.total + ' questions' + mo + '</span>' +
           '<span class="pbar"><i style="width:' + pct(t.done, t.total) + '%"></i></span></span><span class="set__go">' + (t.done ? (t.done >= t.total ? 'Again' : 'Carry on') : 'Start') + ' →</span>';
         sec.appendChild(a);
       });
