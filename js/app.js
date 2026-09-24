@@ -71,7 +71,7 @@
     kw: 'The words the mark scheme is looking for. First choose them, then write them.',
     describe: 'Say what happens, never why. From theory: a process or a structure, step by step. From data: the trend, the numbers with units, the comparison.',
     explain: 'Give the reason. From theory: each feature linked to what it does, with “so” or “because”. From data: what the data shows, then why.',
-    plan: 'Change one thing, measure one thing, keep the rest the same, repeat, stay safe.'
+    plan: 'A short method, like a mini lab report: the independent variable and its values, the dependent variable and how you measure it, the control variables, then the steps, repeats and safety.'
   };
 
   /* ============================================================
@@ -131,10 +131,20 @@
       grid.appendChild(a);
     });
     ms.appendChild(grid);
-    var also = h('div', 'also');
-    if (META.guide) { var ga = h('a', 'also__main', 'Other command words \u2014 state, suggest, compare and the rest: what each one asks for \u2192'); ga.href = '#/commands'; also.appendChild(ga); }
-    (META.extras || []).forEach(function (x) { var a = h('a', '', T.esc(x.title)); a.href = '#/s/' + x.set; also.appendChild(a); });
-    ms.appendChild(also);
+    /* the rest, as cards a student will see rather than a row of links under the fold */
+    var more = h('div', 'explore');
+    more.innerHTML = '<p class="explore__h">Also worth knowing</p>';
+    var grid2 = h('div', 'explore__g');
+    var cards = [];
+    if (META.guide) cards.push({ href: '#/commands', t: 'Every command word', b: 'State, suggest, compare, evaluate and the rest: what each one asks for, with a real example.' });
+    (META.extras || []).forEach(function (x) { cards.push({ href: '#/s/' + x.set, t: x.title, b: x.blurb || '' }); });
+    cards.forEach(function (c) {
+      var a = h('a', 'explore__c'); a.href = c.href;
+      a.innerHTML = '<span class="explore__t">' + T.esc(c.t) + '</span><span class="explore__b">' + T.esc(c.b) + '</span><span class="explore__go">Open \u2192</span>';
+      grid2.appendChild(a);
+    });
+    more.appendChild(grid2);
+    ms.appendChild(more);
     main.appendChild(band1);
     paintRecord();
 
@@ -200,7 +210,7 @@
     var u = META.units[uid];
     if (!u) { go('#/'); return; }
     main.innerHTML = '';
-    var w = h('div', 'col');
+    var w = h('div', 'wrap unitpage');
     var Y = u.year;
     w.appendChild(h('a', 'back', '← Year ' + Y + ' topics')).href = '#/y' + Y;
     var head = h('header', 'uhead');
@@ -315,18 +325,28 @@
   function viewGuide(open) {
     var G = META.guide; if (!G) { go('#/'); return; }
     main.innerHTML = '';
-    var w = h('div', 'col guide');
+    var w = h('div', 'wrap guide');
     w.appendChild(h('a', 'back', '← Front page')).href = '#/';
     w.appendChild(h('header', 'uhead', '<p class="eyebrow">How to answer</p><h1 class="uhead__t">Command words</h1>'));
+    /* the three that carry the marks come first, each a way into its method */
+    var big = h('div', 'bigthree');
+    [['Describe', 'm.describe', 'Say what happens, never why.'], ['Explain', 'm.explain', 'Give the reason.'], ['Plan', 'm.plan', 'A short method: the variables, then the steps.']].forEach(function (x) {
+      var a = h('a', 'bigthree__c'); a.href = '#/s/' + x[1];
+      a.innerHTML = '<span class="bigthree__w">' + x[0] + '</span><span class="bigthree__b">' + T.esc(x[2]) + '</span><span class="bigthree__go">Learn the method \u2192</span>';
+      big.appendChild(a);
+    });
     w.appendChild(h('p', 'sec__p', 'The first word of a question tells you what kind of answer scores. This is the same guide as the “How to answer” tab on your dashboard.'));
     var rl = h('p', 'rec'); rl.id = 'recLine'; rl.hidden = true; w.appendChild(rl);
-    /* the four signals */
+    w.appendChild(h('p', 'sec__p bigthree__h', 'The three that carry the most marks:'));
+    w.appendChild(big);
+    w.appendChild(h('h2', 'guide__h guide__h--all', 'Every command word, in four groups. Open one for what it asks and a real example.'));
+    /* the four signals, after the words: worth reading, not the first thing */
     var dec = h('section', 'dec');
     dec.innerHTML = '<h2 class="guide__h">Before you write: four signals</h2>' + '<ol class="dec__list">' + G.decoder.map(function (d) {
       return '<li><b>' + T.esc(d.name) + '</b><span>' + T.esc(d.what) + '</span><em>' + T.esc(d.cue) + '</em></li>'; }).join('') + '</ol>';
-    w.appendChild(dec);
     var pById = {}; G.patterns.forEach(function (p) { pById[p.id] = p; });
     var cByWord = {}; G.commands.forEach(function (c) { cByWord[c.word] = c; });
+    var groups = h('div', 'cmdgroups'); w.appendChild(groups);
     CMD_GROUPS.forEach(function (grp) {
       var sec = h('section', 'cgrp'); sec.appendChild(h('h2', 'guide__h', T.esc(grp.title)));
       grp.words.forEach(function (wd) {
@@ -343,8 +363,9 @@
         d.innerHTML = body + '</div>';
         sec.appendChild(d);
       });
-      w.appendChild(sec);
+      groups.appendChild(sec);
     });
+    w.appendChild(dec);
     var sy = h('section', 'cgrp');
     sy.innerHTML = '<h2 class="guide__h">Reading a mark scheme</h2><table class="fig__table syms"><thead><tr><th>Symbol</th><th>Means</th><th>In plain words</th></tr></thead><tbody>' +
       G.symbols.map(function (x) { return '<tr><td><b>' + T.esc(x.symbol) + '</b></td><td>' + T.esc(x.official) + '</td><td>' + T.esc(x.plain) + '</td></tr>'; }).join('') + '</tbody></table>';
@@ -365,14 +386,16 @@
     var u = META.units[uid], W = (META.words || {})[uid];
     if (!u || !W) { go('#/'); return; }
     main.innerHTML = '';
-    var w = h('div', 'col');
+    var w = h('div', 'wrap wordsp');
     w.appendChild(h('a', 'back', '← Topic ' + T.esc(u.n) + ': ' + T.esc(u.title))).href = '#/u/' + uid;
     w.appendChild(h('header', 'uhead', '<p class="eyebrow">Topic ' + T.esc(u.n) + ' · ' + W.length + ' keywords</p><h1 class="uhead__t">Keywords: ' + T.esc(u.title) + '</h1>'));
     w.appendChild(h('p', 'sec__p', 'Read them, cover the definition, say it, check. Then test yourself: the Keywords sets ask for every one of them. These are the same definitions as the flashcards on your dashboard.'));
     var dl = h('dl', 'words');
     W.forEach(function (x) {
-      dl.appendChild(h('dt', 'words__t', T.esc(x.t) + (x.sup ? ' <span class="words__sup">Supplement</span>' : '') + (x.ko && CFG.koreanGloss !== false ? ' <span class="words__ko" lang="ko">' + T.esc(x.ko) + '</span>' : '')));
-      dl.appendChild(h('dd', 'words__d', T.esc(x.d)));
+      var g = h('div', 'words__i');   /* a word and its definition stay together across the columns */
+      g.appendChild(h('dt', 'words__t', T.esc(x.t) + (x.sup ? ' <span class="words__sup">Supplement</span>' : '') + (x.ko && CFG.koreanGloss !== false ? ' <span class="words__ko" lang="ko">' + T.esc(x.ko) + '</span>' : '')));
+      g.appendChild(h('dd', 'words__d', T.esc(x.d)));
+      dl.appendChild(g);
     });
     w.appendChild(dl);
     /* The sentence frames this topic teaches, gathered from its own questions: the shapes to
@@ -630,7 +653,7 @@
   }
   function viewHomework(id) {
     main.innerHTML = '';
-    var w = h('div', 'col');
+    var w = h('div', 'wrap');
     w.appendChild(h('a', 'back', '← Front page')).href = '#/';
     var hw = server && (server.homework || []).filter(function (x) { return String(x.id) === String(id); })[0];
     if (!me) { w.appendChild(h('p', 'sec__p', 'Sign in with your school Google account (top right) to see this homework.')); main.appendChild(w); return; }
