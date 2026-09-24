@@ -83,14 +83,20 @@
     var top = h('section', 'hero wrap');
     top.innerHTML = '<p class="eyebrow">For Cambridge IGCSE Biology 0610</p>' +
       '<h1 class="hero__h">Write less. <em>Score more.</em></h1>' +
-      '<p class="hero__p">An examiner gives a mark for an idea, not for a sentence. Answers that score are short, use the keyword, say which way things change, and compare with numbers. Here you practise writing them, topic by topic.</p>';
+      '<p class="hero__p">Practice in writing exam answers. An examiner gives a mark for each idea, not for a long sentence: the right keyword, which way something changes, a comparison, a number. Here you learn to write answers like that, then practise them topic by topic, marked as you go.</p>';
     if (hero) {
-      top.appendChild(h('p', 'hero__q', T.tags(hero.q) + ' <span class="q__marks">[' + hero.marks + ']</span><small>' + T.esc(hero.src) + '</small>'));
+      /* the example is framed and labelled as one, so nobody takes it for the first exercise */
+      var ex = h('section', 'example');
+      ex.setAttribute('aria-label', 'An example');
+      ex.innerHTML = '<p class="example__tag">An example \u00b7 a real exam question, answered twice</p>' +
+        '<p class="example__p">Every question on this site works like this: the question, an answer that scores little, and the same ideas written to score. <span class="waste">Red</span> is what scores nothing; <span class="example__tick">\u2713</span> is one mark.</p>';
+      ex.appendChild(h('p', 'hero__q', T.tags(hero.q) + ' <span class="q__marks">[' + hero.marks + ']</span><small>' + T.esc(hero.src) + '</small>'));
       var sc = h('div', 'scripts');
       sc.appendChild(script('before', hero.before));
       sc.appendChild(script('after', hero.after));
-      top.appendChild(sc);
+      ex.appendChild(sc);
       if (hero.note) sc.lastChild.appendChild(h('p', 'script-card__note', T.tags(hero.note)));
+      top.appendChild(ex);
     }
     main.appendChild(top);
 
@@ -106,9 +112,11 @@
     }
 
     /* the three methods */
-    var ms = h('section', 'sec wrap');
-    ms.innerHTML = '<p class="eyebrow">Learn the method first</p><h2 class="sec__h">Three kinds of question. Three ways to answer.</h2>' +
-      '<p class="sec__p">Most of the writing in a Biology paper answers one of three questions. Each has its own shape. Learn the shape once, then use it in every topic.</p>' +
+    var band1 = h('section', 'band band--learn');
+    var ms = h('div', 'sec wrap');
+    band1.appendChild(ms);
+    ms.innerHTML = '<p class="eyebrow"><span class="step">Step 1</span>Learn the method</p><h2 class="sec__h">Three kinds of question, three ways to answer</h2>' +
+      '<p class="sec__p">Describe, explain and plan an investigation carry the most marks in a Biology paper, and they are where most marks are lost. Each answer has a shape. Learn the shape once here, then use it in every topic.</p>' +
       '<p class="rec" id="recLine" hidden></p>';
     var grid = h('div', 'methods');
     (META.methods || []).forEach(function (m, i) {
@@ -122,16 +130,18 @@
     });
     ms.appendChild(grid);
     var also = h('div', 'also');
-    if (META.guide) { var ga = h('a', '', 'Every command word: what it asks for'); ga.href = '#/commands'; also.appendChild(ga); }
+    if (META.guide) { var ga = h('a', 'also__main', 'Other command words \u2014 state, suggest, compare and the rest: what each one asks for \u2192'); ga.href = '#/commands'; also.appendChild(ga); }
     (META.extras || []).forEach(function (x) { var a = h('a', '', T.esc(x.title)); a.href = '#/s/' + x.set; also.appendChild(a); });
     ms.appendChild(also);
-    main.appendChild(ms);
+    main.appendChild(band1);
     paintRecord();
 
     /* practise by topic */
-    var ts = h('section', 'sec wrap'); ts.id = 'topics';
-    ts.innerHTML = '<p class="eyebrow">Then practise it</p><h2 class="sec__h">By year and topic</h2>' +
-      '<p class="sec__p">The topics each year group studies at NLCS. Every topic has its keywords and its describe, explain and plan questions.</p>';
+    var band2 = h('section', 'band band--practise');
+    var ts = h('div', 'sec wrap'); ts.id = 'topics';
+    band2.appendChild(ts);
+    ts.innerHTML = '<p class="eyebrow"><span class="step">Step 2</span>Practise by topic</p><h2 class="sec__h">Your year, topic by topic</h2>' +
+      '<p class="sec__p">The topics each year group studies at NLCS. Every topic has keyword tests and its own describe, explain and plan questions, all marked as you go.</p>';
     var years = h('div', 'years'); years.setAttribute('role', 'tablist');
     var mineY = server && server.cls ? parseInt(String(server.cls).match(/\d+/) || '', 10) : null;
     var y = year || P.year || (META.years.some(function (Y) { return Y.y === mineY; }) ? mineY : null) || (META.years[0] && META.years[0].y);
@@ -144,7 +154,7 @@
     });
     ts.appendChild(years); ts.appendChild(ledger);
     paintLedger(ledger, y);
-    main.appendChild(ts);
+    main.appendChild(band2);
     if (year) setTimeout(function () { ts.scrollIntoView({ block: 'start' }); }, 0);
   }
   function script(kind, s) {
@@ -533,9 +543,11 @@
   function recordLine() {
     if (!REC || !me || !record) return '';
     if (record.why === 'not a school account') return 'Your dashboard needs your …' + T.esc(REC.domain || 'school') + ' account.';
-    if (!record.has) return 'Your own dashboard starts after your first reflection. Until then, begin with the three methods.';
-    return '<a href="' + T.esc(REC.url) + '" target="_blank" rel="noopener">Open your dashboard</a>: it shows which command words and topics cost you the most marks' +
-      (record.assessments ? ' (' + record.reflected + ' of ' + record.assessments + ' assessments reflected)' : '') + '. Practise those here first.';
+    if (!record.has) return 'You do not have a dashboard yet: it appears after your first assessment reflection. Until then, start with the three methods below.';
+    /* straight to the Commands tab, which is the one that says which command words cost marks */
+    return 'Your dashboard shows which command words cost you the most marks' +
+      (record.assessments ? ' (' + record.reflected + ' of ' + record.assessments + ' assessments reflected)' : '') +
+      '. <a href="' + T.esc(REC.url + (REC.url.indexOf('?') >= 0 ? '&' : '?') + 'tab=commands') + '" target="_blank" rel="noopener">Open its Commands tab</a>, then practise those here first.';
   }
   function paintRecord() {
     var el = document.getElementById('recLine');

@@ -72,7 +72,19 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
 .legend__i { white-space: nowrap; }
 
 /* ---------- hero: two scripts, before and after ---------- */
-.hero { padding-top: 34px; padding-bottom: 10px; }
+.hero { padding-top: 34px; padding-bottom: 28px; }
+/* the worked example, framed and labelled as one */
+.example { margin-top: 26px; padding: 18px 20px 20px; border: 1px solid var(--rule); border-radius: var(--r-lg); background: var(--paper-2); }
+.example__tag { font: 600 12px/1.2 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--green); margin: 0 0 6px; }
+.example__p { margin: 0 0 14px; color: var(--ink-2); font-size: 15px; max-width: 70ch; }
+.example__tick { color: var(--tick); font-weight: 700; }
+.example .hero__q { margin-top: 0; }
+/* the two steps, each a band of its own */
+.band { border-top: 1px solid var(--rule); }
+.band--learn { background: var(--paper-2); border-bottom: 1px solid var(--rule); padding-bottom: 30px; }
+.band--practise { background: var(--paper); padding-bottom: 40px; }
+.step { display: inline-block; font: 700 11px/1 var(--mono); letter-spacing: .1em; color: #fff; background: var(--ink); border-radius: var(--pill); padding: 5px 9px; margin-right: 10px; vertical-align: middle; }
+.also__main { font-weight: 600; }
 .hero__h { font-size: clamp(34px, 5.4vw, 58px); line-height: 1.02; max-width: 16ch; }
 .hero__h em { font-style: normal; color: var(--green-2); }
 .hero__p { font-size: 18px; color: var(--ink-2); max-width: 58ch; margin: 14px 0 22px; }
@@ -89,7 +101,9 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
 .ruled { margin: 0; padding: 6px 0 10px; list-style: none; }
 .ruled li { display: grid; grid-template-columns: 1fr 44px; align-items: start; gap: 8px; padding: 7px 0 7px 14px; border-bottom: 1px solid var(--rule-2); line-height: 1.5; }
 .ruled li:last-child { border-bottom: 0; }
-.ruled .waste { color: #9A7B77; text-decoration: line-through; text-decoration-color: var(--red); text-decoration-thickness: 2px; }
+/* what scores nothing is washed red, not struck through: a struck paragraph cannot be read, and the
+   reader has to see what was written to see why it earned nothing */
+.waste { background: linear-gradient(transparent 38%, var(--red-hl) 38%, var(--red-hl) 92%, transparent 92%); color: var(--red); padding: 0 .06em; border-radius: 2px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 .margin { text-align: center; font: 700 17px/1.4 var(--sans); color: var(--tick); border-left: 1px solid #EDB9B3; }
 .margin--none { color: #C9BFB6; font-weight: 400; }
 
@@ -304,7 +318,7 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
 .sent--trim { line-height: 2.2; }
 .cut { border: 1px solid transparent; background: var(--paper); border-radius: 6px; padding: 3px 6px; cursor: pointer; line-height: 1.5; min-height: 0; }
 .cut:hover { border-color: var(--rule); }
-.cut.is-cut { color: #A89A8E; text-decoration: line-through; text-decoration-color: var(--red); text-decoration-thickness: 2px; background: transparent; }
+.cut.is-cut { color: var(--red); background: var(--red-tint); border-color: var(--red-hl); }
 .sent--trim.is-right { background: var(--ok-tint); border-radius: var(--r-sm); }
 .sent--trim.is-wrong { background: var(--red-tint); border-radius: var(--r-sm); }
 .counter { font: 500 13px/1.3 var(--mono); color: var(--muted); margin: 8px 0 0; }
