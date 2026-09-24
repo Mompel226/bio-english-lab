@@ -311,6 +311,14 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
   border-radius: 0 var(--r-sm) var(--r-sm) 0; font-size: 14px; color: var(--ink-2); }
 .model__old b { color: var(--amber); }
 .deep { border: 1px solid var(--rule-2); border-radius: var(--r-sm); background: var(--paper); }
+.exfold { margin: 4px 0 2px; }
+.exfold > summary { display: inline-block; cursor: pointer; font: 600 13px/1.3 var(--sans); color: var(--teal); list-style: none; }
+.exfold > summary::-webkit-details-marker { display: none; }
+.exfold > summary::before { content: "+ "; font: 600 13px/1 var(--mono); }
+.exfold[open] > summary::before { content: "\2013 "; }
+.exfold > summary:hover { text-decoration: underline; }
+.exfold > summary:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; border-radius: var(--r-sm); }
+.exfold__p { margin: 6px 0 4px; padding: 8px 12px; background: var(--card); border: 1px solid var(--rule-2); border-left: 3px solid var(--teal); border-radius: 0 var(--r-sm) var(--r-sm) 0; font-size: 15px; }
 .deep > summary { cursor: pointer; padding: 8px 11px; font: 600 13px/1.3 var(--sans); color: var(--teal); list-style: none; }
 .deep > summary::-webkit-details-marker { display: none; }
 .deep > summary::before { content: "+ "; font: 600 13px/1 var(--mono); }
