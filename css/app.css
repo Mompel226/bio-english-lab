@@ -188,6 +188,11 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
 .card__top { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
 .card__kind { font: 500 11.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .card__cmd { font: 700 11.5px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; background: var(--ink); color: #fff; padding: 4px 7px; border-radius: 4px; }
+.card__mode { font: 600 10.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; padding: 4px 7px; border-radius: 4px; border: 1px solid var(--rule); color: var(--ink-2); background: var(--paper-2); }
+.card__mode--data { color: var(--amber); border-color: var(--amber-hl); background: #FBF3DF; }
+.card__mode--theory { color: var(--teal); border-color: var(--teal-hl); background: #E9F3F7; }
+.method__kinds { list-style: none; margin: 8px 0 10px; padding: 0; display: grid; gap: 5px; font-size: 14px; color: var(--ink-2); }
+.method__kinds b { color: var(--ink); font-weight: 650; }
 .q { border-left: 4px solid var(--ink); background: var(--paper); border-radius: 0 var(--r-sm) var(--r-sm) 0; padding: 10px 14px; margin: 0 0 12px; }
 .q__text { margin: 0; font-size: 17px; line-height: 1.5; }
 .q__marks { font-weight: 700; white-space: nowrap; float: right; margin-left: 10px; }

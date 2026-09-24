@@ -21,6 +21,15 @@ if either marking is wrong. Both must pass before anything is published.
 
 Never state that a wording earns or loses a mark unless a real scheme or report says so.
 
+## Data or theory
+
+Every describe and explain question is one of two kinds, and its card says which: **from data** (a
+graph or a table: the trend, the numbers, the comparison, then the reason) or **from theory** (a
+process, a structure, a feature and what it does). The build decides from the item — a `figure`, or
+a stem that names a graph or table, means data — and `mode: 'data'` / `mode: 'theory'` on the item
+overrides it. Keep both kinds in every topic: a student who only meets data-describes believes that
+is what the word means.
+
 ## When the syllabus and the paper disagree
 
 Two optional fields, on any item. Both are one sentence or two, in the site's own voice, and both
