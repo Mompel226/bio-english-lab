@@ -234,14 +234,18 @@
     ['kw', 'describe', 'explain', 'plan'].forEach(function (k) {
       var ids = u.sets.filter(function (s) { return META.sets[s] && META.sets[s].kind === k; });
       if (!ids.length) return;
-      var sec = h('section', 'kind');
+      var sec = h('section', 'kind kind--' + k);   /* one colour per kind, the same on every topic */
       sec.innerHTML = '<div class="kind__h"><h2>' + KIND_NAME[k] + '</h2></div><p class="kind__p">' + KIND_BLURB[k] + '</p>';
       ids.forEach(function (sid) {
         var m = META.sets[sid], t = tally(sid);
         var a = h('a', 'set'); a.href = '#/s/' + sid;
-        var mo = m.modes && (m.modes.data || m.modes.theory) ? ' · ' + (m.modes.theory ? m.modes.theory + ' from theory' : '') + (m.modes.theory && m.modes.data ? ', ' : '') + (m.modes.data ? m.modes.data + ' from data' : '') : '';
-        a.innerHTML = '<span><span class="set__t">' + T.esc(m.title) + '</span><br><span class="set__s">' + T.esc(m.blurb || '') + ' · ' + t.total + ' questions' + mo + '</span>' +
-          '<span class="pbar"><i style="width:' + pct(t.done, t.total) + '%"></i></span></span><span class="set__go"><span class="set__pct">' + (t.done ? t.done + ' of ' + t.total + ' · ' + pct(t.done, t.total) + '%' : '') + '</span>' + (t.done ? (t.done >= t.total ? 'Again' : 'Carry on') : 'Start') + ' →</span>';
+        /* two rows: what the set is; then how big it is and how far you are */
+        var mo = m.modes && (m.modes.data || m.modes.theory) ? (m.modes.theory ? ' · ' + m.modes.theory + ' from theory' : '') + (m.modes.data ? ' · ' + m.modes.data + ' from data' : '') : '';
+        a.innerHTML = '<span class="set__main"><span class="set__t">' + T.esc(m.title) + '</span>' +
+          (m.blurb ? '<span class="set__s">' + T.esc(m.blurb) + '</span>' : '') +
+          '<span class="set__meta"><span class="set__n">' + t.total + ' questions' + mo + '</span>' +
+          '<span class="pbar"><i style="width:' + pct(t.done, t.total) + '%"></i></span><span class="set__pct">' + (t.done ? t.done + ' of ' + t.total + ' · ' + pct(t.done, t.total) + '%' : 'not started') + '</span></span></span>' +
+          '<span class="set__go">' + (t.done ? (t.done >= t.total ? 'Again' : 'Carry on') : 'Start') + ' →</span>';
         sec.appendChild(a);
       });
       kinds.appendChild(sec);
@@ -444,7 +448,7 @@
     var m = META.sets[sid], set = openSet(sid);
     if (!m || !set) { toast('That set could not be opened.'); go('#/'); return; }
     main.innerHTML = '';
-    var w = h('div', 'col player');
+    var w = h('div', 'col player player--' + (m.kind || 'method'));
     var u = unitOf(sid);
     var back = h('a', 'back', u ? '← Topic ' + T.esc(u.n) + ': ' + T.esc(u.title) : '← All topics');
     back.href = u ? '#/u/' + u.id : '#/';
