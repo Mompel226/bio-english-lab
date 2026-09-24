@@ -138,6 +138,10 @@ function edit(name, from, to) { edits.push({ name, from, to }); }
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const js = s => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
+edit('?tab=commands opens the dashboard on that tab',
+  "    `})();` +\n\n    `</script></body></html>`;",
+  `    \`})();\` +\n\n    /* ?tab=commands (or any tab id) opens the dashboard on that tab: Bio English Lab links a student\n       straight to the command words that cost them marks. Waits for the tab to exist, then switches. */\n    \`(function(){if(!(window.google&&google.script&&google.script.url))return;\` +\n    \`google.script.url.getLocation(function(l){var t=l&&l.parameter&&l.parameter.tab;if(!t)return;var n=0;\` +\n    \`(function go(){if(document.getElementById("tab-"+t)&&typeof showTab==="function"){showTab(t)}else if(n++<50){setTimeout(go,200)}})()})})();\` +\n\n    \`</script></body></html>\`;`);
+
 edit('each card links to its practice on Bio English Lab',
   `            '<div class="pc-section"><h6>Cambridge note</h6><p>' + escH(p.note) + '</p></div>' +`,
   `            '<div class="pc-section"><h6>Cambridge note</h6><p>' + escH(p.note) + '</p></div>' +
