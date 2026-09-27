@@ -173,6 +173,15 @@ function checkItem(it, where) {
 const shared = findShared();
 if (!shared) bad('build', 'labs-shared/ not found above the repo');
 if (!fs.existsSync(SRC)) { console.error('No ../bio-english-lab-source/ beside the repo.'); process.exit(1); }
+const SYL = {};
+const SYL_TAGS = (() => { try { return JSON.parse(fs.readFileSync(path.join(SRC, 'syllabus-tags.json'), 'utf8')); } catch (e) { return { items: {}, keywords: {} }; } })();
+/* `h`: the item's fingerprint now. A tag given to the item as it was before a rewording is not used: the reworded
+   question may test something else (tools/syllabus-tags.mjs check names it) */
+function sylOf(id, h) {
+  const x = String(id).startsWith('kwm.') ? (SYL_TAGS.keywords || {})[String(id).slice(4)] : (SYL_TAGS.items || {})[id];
+  if (x && h && x.h && x.h !== h) return [];
+  return x && Array.isArray(x.syl) ? x.syl.slice(0, 3) : [];
+}
 
 const { YEARS, UNITS } = await load(path.join(SRC, 'units.master.js'));
 const methodsMod = await load(path.join(SRC, 'methods.master.js'));
@@ -352,6 +361,8 @@ for (const s of Object.values(SETS)) {
     if (it.type === 'gap' || it.type === 'exam') ((it.text || '') + (it.frames || []).join(' ')).replace(/\{\{([^}]+)\}\}/g, (_, a) => { a.split('|').forEach(x => known.add(x.trim())); return ''; });
   });
   const keys = items.filter(it => it.type !== 'learn').map(it => it.id + '@' + it.h);
+  /* each scored question's syllabus statements, in the same order as `keys` (see SYL below) */
+  SYL[s.id] = items.filter(it => it.type !== 'learn').map(it => sylOf(it.id, it.h));
   totalQ += keys.length;
   meta.sets[s.id] = { id: s.id, unit: s.unit || null, kind: s.kind, title: s.title, blurb: s.blurb || '', keys, v: fnv(keys.join('|')), modes };
   shipped[s.id] = scramble({ id: s.id, items });
@@ -409,12 +420,20 @@ if (fs.existsSync(GUIDE_FILE)) {
   if (problems.length) { console.error('\n✗ ' + problems.join('\n  ')); process.exit(1); }
 }
 
+/* ---------- syllabus tags (27 Sep 2026) ----------
+   ../bio-english-lab-source/syllabus-tags.json says which IGCSE 0610 (2026–2028) statements each question
+   assesses: authored items by id, the "Keywords: meanings" questions (kwm.<keyword>) by keyword id. They go
+   into the PUBLIC set list only (data/sets.json, as one short string per set: "9.1.2|9.2.1,9.3.3|…" — a question's
+   statements joined by commas, questions in the set's order joined by |, kept short because the labs script
+   caches this file only while it is under 95 KB), never into the questions: an item's fingerprint `h` covers every field it has, so a
+   new field there would reset every student's saved answer. The reflection system's My assessments reads
+   them to show practice statement by statement. tools/syllabus-tags.mjs (estate root) writes and checks them. */
 /* ---------- the public list of sets, for the Apps Script ---------- */
 const manifest = {
   site: 'bio-english-lab', built: new Date().toISOString(),
   years: YEARS.map(Y => ({ y: Y.y, title: Y.title, units: Y.units })),
   units: Object.fromEntries(Object.entries(meta.units).map(([k, u]) => [k, { n: u.n, title: u.title, year: u.year, sets: u.sets }])),
-  sets: Object.values(meta.sets).map(s => ({ id: s.id, unit: s.unit, kind: s.kind, title: s.title, total: s.keys.length, v: s.v }))
+  sets: Object.values(meta.sets).map(s => ({ id: s.id, unit: s.unit, kind: s.kind, title: s.title, total: s.keys.length, v: s.v, syl: (SYL[s.id] || []).map(x => x.join(',')).join('|') }))
 };
 
 /* ---------- report ---------- */

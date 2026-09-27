@@ -47,6 +47,58 @@
   }
   function save() { try { localStorage.setItem(STORE, JSON.stringify(P)); } catch (e) {} }
   function rec(setId) { return P.sets[setId] || (P.sets[setId] = { items: {} }); }
+
+  /* ---------- goes (September 2026) ----------
+     Start again clears the PAGE, never the record (the labs' model, labs-shared/engine/sync.js). A set on
+     its 2nd go or later keeps `go`, its FIRST go as it stood when go 2 began (`g1`) and the best each
+     question has ever been (`best`): both keyed by question, like `items`, so a rebuilt set keeps them for
+     every question that did not change. Letters: 0 untouched · t tried · s answer shown · 1 right ·
+     f right first time. The lists, the topic and year bars and homework show the best ever; a set's own
+     page shows the go it is on. Students read "round" (Round 2), never "go": one word, the same in every lab. */
+  var EN_RANK = { '0': 0, t: 1, s: 2, '1': 3, f: 4 };
+  function letter(st) { return !st ? '0' : st.first ? 'f' : st.ok ? '1' : st.shown ? 's' : st.t ? 't' : '0'; }
+  function goOf(r) { return r && r.go > 1 ? Math.floor(r.go) : 1; }
+  function better(a, b) { return (EN_RANK[b] || 0) > (EN_RANK[a] || 0) ? b : a; }
+  function recordsOf(sid) {
+    var m = META.sets[sid], r = P.sets[sid] || { items: {} }, g = goOf(r), here = {}, first = {}, best = {};
+    ((m && m.keys) || []).forEach(function (k) {
+      var h0 = letter(r.items[k]), f0 = g === 1 ? h0 : ((r.g1 || {})[k] || '0');
+      here[k] = h0; first[k] = f0; best[k] = better(better(h0, f0), (r.best || {})[k] || '0');
+    });
+    return { go: g, here: here, first: first, best: best };
+  }
+  function lettersOf(sid, map) { return ((META.sets[sid] || {}).keys || []).map(function (k) { return map[k] || '0'; }).join(''); }
+  function tallyBest(setId) {
+    var m = META.sets[setId]; if (!m) return { done: 0, first: 0, firstTried: 0, here: 0, total: 0, go: 1 };
+    var R = recordsOf(setId), done = 0, first = 0, firstTried = 0, here = 0;
+    (m.keys || []).forEach(function (k) {
+      var b = R.best[k]; if (b === 'f' || b === '1' || b === 's') done++;
+      if (R.first[k] === 'f') first++;
+      if (R.first[k] !== '0') firstTried++;
+      if (R.here[k] !== '0') here++;
+    });
+    /* firstTried: questions answered in the first round; here: questions touched in this round */
+    return { done: done, first: first, firstTried: firstTried, here: here, total: (m.keys || []).length, go: R.go };
+  }
+  /* Start again: only a set with something answered on this go moves on */
+  function newGo(sid) {
+    var r = P.sets[sid], m = META.sets[sid]; if (!r || !m) return false;
+    var R = recordsOf(sid), any = false, g1 = {}, best = {};
+    (m.keys || []).forEach(function (k) {
+      if (R.here[k] !== '0') any = true;
+      if (R.first[k] !== '0') g1[k] = R.first[k];
+      if (R.best[k] !== '0') best[k] = R.best[k];
+    });
+    if (!any) return false;
+    r.g1 = g1; r.best = best; r.items = {}; r.go = R.go + 1;
+    return true;
+  }
+  /* the records' letters (key order of the set as it is now) folded into one of this browser's maps: adds only */
+  function foldLetters(sid, map, letters) {
+    var keys = (META.sets[sid] || {}).keys || [], n = 0;
+    keys.forEach(function (k, i) { var c = String(letters || '').charAt(i); if (!c || c === '0' || EN_RANK[c] == null) return; var was = map[k] || '0'; if (better(was, c) !== was) { map[k] = c; n++; } });
+    return n;
+  }
   function key(it) { return it.id + '@' + it.h; }
   function scored(set) { return set.items.filter(function (it) { return it.type !== 'learn'; }); }
   /* The numbers a set shows — worked out from META (no need to open the set) when possible */
@@ -58,7 +110,7 @@
   }
   function pct(a, b) { return b ? Math.round(100 * a / b) : 0; }
   /* how far a student is through a topic, or a whole year: answered, out of all its questions */
-  function unitTally(uid) { var u = META.units[uid], d = 0, t = 0; if (u) u.sets.forEach(function (s) { var x = tally(s); d += x.done; t += x.total; }); return { done: d, total: t }; }
+  function unitTally(uid) { var u = META.units[uid], d = 0, t = 0; if (u) u.sets.forEach(function (s) { var x = tallyBest(s); d += x.done; t += x.total; }); return { done: d, total: t }; }
   function yearTally(Y) { var d = 0, t = 0; (Y.units || []).forEach(function (uid) { var x = unitTally(uid); d += x.done; t += x.total; }); return { done: d, total: t }; }
 
   /* ---------- small helpers ---------- */
@@ -123,7 +175,7 @@
       '<p class="rec" id="recLine" hidden></p>';
     var grid = h('div', 'methods');
     (META.methods || []).forEach(function (m, i) {
-      var t = tally(m.set);
+      var t = tallyBest(m.set);
       var a = h('a', 'method');
       a.href = '#/s/' + m.set;
       a.innerHTML = '<span class="method__n">0' + (i + 1) + ' · ' + T.esc(m.when) + '</span><span class="method__h">' + T.esc(m.title) + '</span>' +
@@ -191,7 +243,16 @@
     if (!Y) return;
     var yt = yearTally(Y);
     host.appendChild(h('p', 'ledger__sum', '<b>' + T.esc(Y.title) + ':</b> ' + yt.done + ' of ' + yt.total + ' questions answered (' + pct(yt.done, yt.total) + '%)' +
-      (me ? '' : ' \u00b7 <span class="ledger__note">Kept in this browser. Sign in with your school account and it is recorded for your teacher.</span>')));
+      (me ? '' : ' \u00b7 <span class="ledger__note">Kept in this browser. Sign in with your school account and it is recorded for your teacher.' +
+        (hasWork() ? ' Not your work? <button type="button" class="ledger__clear">Clear this computer</button>' : '') + '</span>')));
+    var clr = host.querySelector('.ledger__clear');
+    if (clr) clr.addEventListener('click', function () {
+      if (!confirm('Clear this computer?\n\nThe answers kept in this browser are removed. Nothing in anybody\u2019s record changes.')) return;
+      clearHere();
+      try { localStorage.removeItem(OWNER_KEY); } catch (e) {}
+      route();
+      toast('Cleared. This computer keeps no answers now.');
+    });
     Y.units.forEach(function (uid) {
       var u = META.units[uid]; if (!u) return;
       var a = h('a', 'unit' + (u.sets.length ? '' : ' is-soon'));
@@ -200,7 +261,7 @@
       ['kw', 'describe', 'explain', 'plan'].forEach(function (k) {
         var ids = u.sets.filter(function (s) { return META.sets[s] && META.sets[s].kind === k; });
         if (!ids.length) return;
-        var d = 0, t = 0; ids.forEach(function (s) { var x = tally(s); d += x.done; t += x.total; });
+        var d = 0, t = 0; ids.forEach(function (s) { var x = tallyBest(s); d += x.done; t += x.total; });
         bars += '<span class="mini mini--' + k + '"><span class="mini__l">' + KIND_NAME[k] + '</span><span class="mini__b"><i style="width:' + pct(d, t) + '%"></i></span></span>';
       });
       var ut = unitTally(uid);
@@ -237,14 +298,14 @@
       var sec = h('section', 'kind kind--' + k);   /* one colour per kind, the same on every topic */
       sec.innerHTML = '<div class="kind__h"><h2>' + KIND_NAME[k] + '</h2></div><p class="kind__p">' + KIND_BLURB[k] + '</p>';
       ids.forEach(function (sid) {
-        var m = META.sets[sid], t = tally(sid);
+        var m = META.sets[sid], t = tallyBest(sid), now = t.go > 1 ? tally(sid) : null;
         var a = h('a', 'set'); a.href = '#/s/' + sid;
         /* two rows: what the set is; then how big it is and how far you are */
         var mo = m.modes && (m.modes.data || m.modes.theory) ? (m.modes.theory ? ' · ' + m.modes.theory + ' from theory' : '') + (m.modes.data ? ' · ' + m.modes.data + ' from data' : '') : '';
         a.innerHTML = '<span class="set__main"><span class="set__t">' + T.esc(m.title) + '</span>' +
           (m.blurb ? '<span class="set__s">' + T.esc(m.blurb) + '</span>' : '') +
           '<span class="set__meta"><span class="set__n">' + t.total + ' questions' + mo + '</span>' +
-          '<span class="set__bar"><span class="pbar"><i style="width:' + pct(t.done, t.total) + '%"></i></span><span class="set__pct">' + (t.done ? t.done + ' of ' + t.total + ' · ' + pct(t.done, t.total) + '%' : 'not started') + '</span></span></span></span>' +
+          '<span class="set__bar"><span class="pbar"><i style="width:' + pct(t.done, t.total) + '%"></i></span><span class="set__pct">' + (t.done ? t.done + ' of ' + t.total + ' · ' + pct(t.done, t.total) + '%' : 'not started') + (now ? ' · round ' + t.go + ': ' + now.done + ' of ' + now.total : '') + '</span></span></span></span>' +
           '<span class="set__go">' + (t.done ? (t.done >= t.total ? 'Again' : 'Carry on') : 'Start') + ' →</span>';
         sec.appendChild(a);
       });
@@ -471,8 +532,12 @@
       return items.length;     /* all done: the summary */
     }
     function paintDots() {
-      var pt = tally(sid);
-      prog.innerHTML = '<b>' + pt.done + ' of ' + pt.total + '</b> answered' + (pt.first ? ' · ' + pt.first + ' right first time' : '') + ' · ' + pct(pt.done, pt.total) + '%';
+      var pt = tally(sid), pb = tallyBest(sid);
+      /* from round 2 on, right first time is round 1's, out of the questions answered in round 1: this round's
+         would count questions already seen */
+      prog.innerHTML = (pb.go > 1 ? 'Round ' + pb.go + ' · ' : '') + '<b>' + pt.done + ' of ' + pt.total + '</b> answered' +
+        (pb.go === 1 && pt.first ? ' · ' + pt.first + ' right first time' : '') + ' · ' + pct(pt.done, pt.total) + '%' +
+        (pb.go > 1 && pb.firstTried ? ' · round 1: ' + pb.first + ' of ' + pb.firstTried + ' right first time' : '');
       dots.innerHTML = '';
       items.forEach(function (it, i) {
         var s = r.items[key(it)] || {};
@@ -514,18 +579,30 @@
       if (f && !matchMedia('(pointer: coarse)').matches && it.type !== 'learn') { try { f.focus({ preventScroll: true }); } catch (e) {} }
     }
     function summary() {
-      var t = tally(sid);
+      var t = tally(sid), tb = tallyBest(sid);
       if (t.done >= t.total) queueSync(sid, true);   /* finished: the records hear at once */
       var d = h('div', 'done');
-      d.innerHTML = '<p class="eyebrow">' + T.esc(m.title) + '</p><h2>' + (t.done >= t.total ? 'Set finished.' : 'Not finished yet.') + '</h2>' +
-        '<div class="done__nums"><div>' + t.done + '/' + t.total + '<span>answered</span></div><div>' + t.first + '/' + t.total + '<span>right first time</span></div></div>';
+      var firstNums = tb.go > 1
+        ? (tb.firstTried ? '<div>' + tb.first + '/' + tb.firstTried + '<span>right first time in round 1</span></div>' : '')
+        : '<div>' + t.first + '/' + t.total + '<span>right first time</span></div>';
+      d.innerHTML = '<p class="eyebrow">' + T.esc(m.title) + (tb.go > 1 ? ' \u00b7 round ' + tb.go : '') + '</p><h2>' + (t.done >= t.total ? 'Set finished.' : 'Not finished yet.') + '</h2>' +
+        '<div class="done__nums"><div>' + t.done + '/' + t.total + '<span>answered</span></div>' + firstNums + '</div>';
       var row = h('div', 'card__foot');
-      var again = h('button', 'btn', 'Start again'); again.type = 'button';
-      again.addEventListener('click', function () { if (!confirm('Clear your answers for this set and start again?')) return; P.sets[sid] = { items: {} }; r = rec(sid); save(); queueSync(sid); show(0); });
+      /* only a round with answers in it can be started again */
+      var again = tb.here ? h('button', 'btn', 'Start again') : null;
+      if (again) {
+        again.type = 'button';
+        again.addEventListener('click', function () {
+          if (!confirm('Start this set again?\n\nYour answers will be cleared from this page, so you can practise the questions again. Your record keeps everything you have already done.')) return;
+          if (!newGo(sid)) return;
+          r = rec(sid); save(); queueSync(sid, true); show(0);
+          toast('Round ' + goOf(r) + ' has started. Your record keeps everything you did before.');
+        });
+      }
       var next = nextSet(sid);
       if (next) { var nx = h('a', 'btn btn--go', 'Next set: ' + T.esc(META.sets[next].title) + ' →'); nx.href = '#/s/' + next; row.appendChild(nx); }
       var bk = h('a', 'btn', u ? 'Back to the topic' : 'Back to the front'); bk.href = u ? '#/u/' + u.id : '#/';
-      row.appendChild(bk); row.appendChild(again);
+      row.appendChild(bk); if (again) row.appendChild(again);
       d.appendChild(row);
       if (t.done < t.total) d.appendChild(h('p', 'hint', 'Questions still open are shown as empty circles above.'));
       return d;
@@ -566,7 +643,24 @@
       }, 10000);
     }
   }
-  if (SI) SI.on(function (v) { var was = me && me.email; me = v; paintWho(); if (v && v.email !== was) { server = null; record = null; fetchMine(); fetchRecord(); } if (!v) { server = null; record = null; route(); } });
+  /* ---------- a shared computer ----------
+     This browser's work belongs to the account it was last saved for. Another account signing in must not
+     have it pushed into THEIR record (it is safe in its owner's already), so it leaves this browser first.
+     Work done signed out, before anybody signed in here, has no owner yet and goes to the first account
+     that signs in. "Clear this computer" (the front page, signed out) empties the browser by hand. */
+  var OWNER_KEY = 'bio-english-lab.owner';
+  function hasWork() { return Object.keys(P.sets).some(function (sid) { var r = P.sets[sid]; return r && ((r.items && Object.keys(r.items).length) || goOf(r) > 1); }); }
+  function clearHere() { P = { sets: {}, year: P.year }; save(); pending = {}; }
+  function claimFor(email) {
+    var was = '';
+    try { was = localStorage.getItem(OWNER_KEY) || ''; } catch (e) {}
+    if (was && email && was !== email && hasWork()) {
+      clearHere();
+      toast('This computer had another student\u2019s work. It stays in their record; it was not added to yours.');
+    }
+    try { if (email) localStorage.setItem(OWNER_KEY, email); } catch (e) {}
+  }
+  if (SI) SI.on(function (v) { var was = me && me.email; me = v; paintWho(); if (v && v.email !== was) { server = null; record = null; claimFor(v.email); fetchMine(); fetchRecord(); } if (!v) { server = null; record = null; route(); } });
 
   /* ---------- the student's own dashboard (the reflection system's record page) ----------
      Asked, never assumed: the labs' script says whether this student has reflected yet. */
@@ -582,7 +676,8 @@
         if (!j.ok) { record = { has: false, why: j.why || '' }; }
         else {
           var reflected = Number(j.reflected != null ? j.reflected : j.count) || 0, unfinished = (j.unfinishedNames || []).length || Number(j.incomplete) || 0;
-          record = { has: reflected + unfinished > 0, reflected: reflected, assessments: Number(j.assessments) || reflected, teacher: !!j.teacher };
+          record = { has: reflected + unfinished > 0, reflected: reflected, assessments: Number(j.assessments) || reflected, teacher: !!j.teacher,
+                     practice: !!j.practice };
         }
         paintRecord();
       }).catch(function () {});
@@ -590,6 +685,8 @@
   function recordLine() {
     if (!REC || !me || !record) return '';
     if (record.why === 'not a school account') return 'Your dashboard needs your …' + T.esc(REC.domain || 'school') + ' account.';
+    /* practice (the labs, and this site) shows on the dashboard before any reflection (Sept 2026) */
+    if (!record.has && record.practice) return 'Your practice so far is on <a href="' + T.esc(REC.url) + '" target="_blank" rel="noopener">your dashboard</a>. After your first assessment reflection, it also shows which command words cost you marks.';
     if (!record.has) return 'You do not have a dashboard yet: it appears after your first assessment reflection. Until then, start with the three methods below.';
     /* straight to the Commands tab, which is the one that says which command words cost marks */
     return 'Your dashboard shows which command words cost you the most marks' +
@@ -643,7 +740,12 @@
     pending = {};
     setSync('saving');
     var sets = {};
-    ids.forEach(function (sid) { var t = tally(sid); sets[sid] = { done: t.done, first: t.first, total: t.total, snap: snap(sid), v: META.sets[sid].v }; });
+    /* this go's letters (snap) with its go, the first go (snap1) and the best ever: the records keep all three */
+    ids.forEach(function (sid) {
+      var t = tallyBest(sid), R = recordsOf(sid);
+      sets[sid] = { done: t.done, first: t.first, total: t.total, snap: snap(sid), v: META.sets[sid].v,
+                    go: R.go, snap1: lettersOf(sid, R.first), best: lettersOf(sid, R.best) };
+    });
     post({ action: 'english.save', token: live.token, sets: sets, at: new Date().toISOString() }, leaving)
       .then(function (j) { if (!j || !j.ok) { ids.forEach(function (s) { pending[s] = true; }); setSync('failed'); clearTimeout(syncTimer); syncTimer = setTimeout(function () { syncTimer = null; flush(); }, 60000); if (j && j.why && j.why !== 'not signed in') toast('Your progress was not recorded: ' + j.why); } else setSync('saved'); })
       .catch(function () { ids.forEach(function (s) { pending[s] = true; }); setSync('failed'); });
@@ -659,13 +761,28 @@
       server = j;
       setSync(syncState === 'saving' ? 'saving' : 'saved');
       paintWho();
-      /* bring back progress made on another computer: only ever adds */
-      var added = 0;
+      /* bring back progress made on another computer: only ever adds. A set the records hold on a NEWER
+         go was started again elsewhere: this browser moves on too, keeping what it had in its first go and
+         best. An OLDER go (or an older script that knows no goes) never reaches the page — its answers
+         still count for the first go and the best. */
+      var added = 0, newer = 0;
       Object.keys(j.sets || {}).forEach(function (sid) {
-        var m = META.sets[sid], s = j.sets[sid]; if (!m || !s || !s.snap || s.v !== m.v) return;
-        var r = rec(sid);
+        var m = META.sets[sid], s = j.sets[sid]; if (!m || !s || s.v !== m.v) return;
+        var r = rec(sid), sg = s.go > 1 ? Math.floor(s.go) : 1, lg = goOf(r);
+        if (sg > lg) {
+          var R0 = recordsOf(sid), g1 = {}, bst = {};
+          m.keys.forEach(function (k) { if (R0.first[k] !== '0') g1[k] = R0.first[k]; if (R0.best[k] !== '0') bst[k] = R0.best[k]; });
+          r.g1 = g1; r.best = bst; r.items = {}; r.go = sg; lg = sg; newer++;
+        }
+        r.best = r.best || {};
+        if (s.best) foldLetters(sid, r.best, s.best);
+        var here = s.here != null ? String(s.here) : String(s.snap || '');   /* this round */
+        if (s.snap1) { if (lg > 1) { r.g1 = r.g1 || {}; foldLetters(sid, r.g1, s.snap1); } else foldLetters(sid, r.best, s.snap1); }
+        /* an older round's letters count for the best only: only snap1 is ever the first round (the lab's rule too) */
+        if (sg < lg) { foldLetters(sid, r.best, here); return; }
+        if (!here) return;
         m.keys.forEach(function (k, i) {
-          var c = s.snap.charAt(i); if (!c || c === '0') return;
+          var c = here.charAt(i); if (!c || c === '0') return;
           var cur = r.items[k] || {};
           if (c === 'f' && !cur.first) { cur.first = 1; cur.ok = 1; added++; }
           else if (c === '1' && !cur.ok) { cur.ok = 1; added++; }
@@ -674,10 +791,11 @@
           r.items[k] = cur;
         });
       });
-      if (added) { save(); toast('Your answers from another computer are back.'); }
+      if (added || newer) { save(); toast(newer ? 'Your record is back. A set was started again on another computer, so it is on its new round here too.' : 'Your answers from another computer are back.'); }
+      else save();
       /* and the other way: work done in this browser before signing in has never been sent —
          queue every set with an answer in it (the server merge only ever adds, so nothing is lost) */
-      var toSend = Object.keys(P.sets).filter(function (sid) { var r = P.sets[sid]; return META.sets[sid] && r && r.items && Object.keys(r.items).length; });
+      var toSend = Object.keys(P.sets).filter(function (sid) { var r = P.sets[sid]; return META.sets[sid] && r && ((r.items && Object.keys(r.items).length) || goOf(r) > 1); });
       toSend.forEach(function (sid, i) { queueSync(sid, i === toSend.length - 1); });
       route();
     }).catch(function () {});
@@ -691,7 +809,7 @@
     server.homework.forEach(function (hw) {
       var row = h('div', 'hw__row');
       var d = 0, t = 0;
-      (hw.sets || []).forEach(function (s) { var x = tally(s); d += x.done; t += x.total; });
+      (hw.sets || []).forEach(function (s) { var x = tallyBest(s); d += x.done; t += x.total; });
       row.innerHTML = '<a href="#/hw/' + encodeURIComponent(hw.id) + '"><b>' + T.esc(hw.title) + '</b></a><span class="hw__due">due ' + T.esc(hw.due || '') + '</span><span>' + d + '/' + t + ' done</span>';
       box.appendChild(row);
     });
@@ -708,7 +826,7 @@
     var sec = h('section', 'kind');
     (hw.sets || []).forEach(function (sid) {
       var m = META.sets[sid]; if (!m) return;
-      var t = tally(sid), u = META.units[m.unit];
+      var t = tallyBest(sid), u = META.units[m.unit];
       var a = h('a', 'set'); a.href = '#/s/' + sid;
       a.innerHTML = '<span><span class="set__t">' + (u ? 'Topic ' + T.esc(u.n) + ' · ' : '') + T.esc(m.title) + '</span><br><span class="set__s">' + t.total + ' questions</span><span class="pbar"><i style="width:' + pct(t.done, t.total) + '%"></i></span></span><span class="set__go">' + (t.done >= t.total ? 'Done' : t.done ? 'Carry on' : 'Start') + ' →</span>';
       sec.appendChild(a);
@@ -736,5 +854,5 @@
   addEventListener('hashchange', route);
   paintWho();
   route();
-  if (me) { fetchMine(); fetchRecord(); }
+  if (me) { claimFor(me.email); fetchMine(); fetchRecord(); }
 })();
