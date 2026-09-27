@@ -122,7 +122,16 @@ direction, the answer to a different command word (a reason in a describe questi
 ## Keywords
 
 `keywords.master.js` is the ONE list of keywords and definitions, shared with the reflection
-system's flashcards (`node tools/keywords-gs.mjs` writes `5_IgcseBiologyKeywords.gs` from it). The
+system's flashcards (`node tools/keywords.mjs gs` writes `5_IgcseBiologyKeywords.gs` from it). The
 build makes each topic's "Keywords: meanings" set from it automatically (definition → choose the
 keyword). Authors write the other keyword set by hand: situations and exam sentences, where the
 student has to recognise the keyword in use.
+
+A meanings question's prompt is the definition's first sentence with the keyword blanked, so write
+that sentence as a definition that does not name the keyword. The build never blanks a bracket that
+says which one ("Septum (heart)", "Epidermis (leaf)": `QUALIFIER` in `tools/build.mjs`), and leaves
+out an aside that names the answer ("(forming oxyhaemoglobin)"). Where the first sentence names it
+anyway — a longer word built on it (ciliated, flowering) or its head word as a label (the palisade
+mesophyll) — give the keyword `ask:`, the question's own prompt; the flashcards keep the definition.
+The build stops if a one-word keyword's prompt still spells it, or if a keyword has too few others in
+its topic to choose from (a unit cut out of a topic, like 14.5, borrows from the topic).
