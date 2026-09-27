@@ -194,7 +194,19 @@ const SETS = {};           /* id → set */
    Definition in, keyword out: the same definitions the reflection system's flashcards show,
    so the two can never teach a word two ways. The wrong choices are other keywords from the
    same topic (same section first), picked the same way every build so a question's
-   fingerprint only changes when its words do. */
+   fingerprint only changes when its words do.
+   The prompt must not hand over the answer (the syllabus-tag audit, 27 Sep 2026, found that
+   it did — "(forming oxyhaemoglobin)", "the middle of the ______" where the blank was the heart):
+     · a bracket that says WHICH one — "Septum (heart)", "Epidermis (leaf)" — is not another
+       name for the keyword, so it is never blanked (QUALIFIER, in names());
+     · a short first sentence borrows the next one only when the next one does not name the
+       answer, and an aside that names it is left out (promptFor());
+     · where the first sentence itself names the answer — a longer word built on it (ciliated,
+       flowering) or its own head word as a label (the palisade mesophyll) — the keyword carries
+       the question's prompt as `ask:` in the master. The flashcards keep the definition.
+   And a keyword that cannot be built now stops the build: 14.5 has four keywords, three of
+   which share "tropism", so three questions were being dropped without a word. A small unit
+   now borrows its last wrong choices from its parent topic (14.5 from 14). */
 function unitOfKeyword(k) {
   const t = Number(k.topic), sub = String(k.subtopic || '');
   if (!t || k.year === 'IB' || k.review === 'delete?') return null;
@@ -202,13 +214,13 @@ function unitOfKeyword(k) {
   if (t === 16 && sub.startsWith('16.3')) return 't16-3';
   return UNITS['t' + t] ? 't' + t : null;
 }
-function firstSentence(def) {
-  const d = String(def || '').trim();
-  const re = /(?<!\be\.g|\bi\.e|\betc)\.\s+(?=[A-Z(])/g;
-  const m = re.exec(d);
-  let s = m ? d.slice(0, m.index + 1) : d;
-  if (s.split(/\s+/).length < 7 && m) { const m2 = re.exec(d); s = m2 ? d.slice(0, m2.index + 1) : d; }
-  return s;
+/* the definition's sentences, cut where the old firstSentence() cut them */
+function sentences(def) {
+  const d = String(def || '').trim(), re = /(?<!\be\.g|\bi\.e|\betc)\.\s+(?=[A-Z(])/g, out = [];
+  let from = 0, m;
+  while ((m = re.exec(d))) { out.push(d.slice(from, m.index + 1)); from = m.index + m[0].length; }
+  out.push(d.slice(from));
+  return out.filter(Boolean);
 }
 function maskTerm(text, term) {
   const esc = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -217,16 +229,48 @@ function maskTerm(text, term) {
   forms.sort((a, b) => b.length - a.length).forEach(f => { out = out.replace(new RegExp('\\b' + esc(f) + '\\b', 'gi'), '______'); });
   return out;
 }
-/* "Neurone (nerve cell)" → main "Neurone", also "nerve cell"; "Stimulus (plural: stimuli)" → also "stimuli" */
+/* "Neurone (nerve cell)" → main "Neurone", also "nerve cell"; "Stimulus (plural: stimuli)" → also "stimuli";
+   "Septum (heart)" → ctx "heart": a bracket that says which one is not a name, so it is never blanked.
+   `all` keeps every bracketed word, so two choices never share one (the distractors are as before), and
+   `words` keeps them in their old order for `accept`: a meanings question is always a choose, so `accept` is
+   never read, and changing it would reset that question on every student's page. */
+const QUALIFIER = /^(?:in|of|and)\b|^(?:life process|fat|oil|enzyme|substrate|plants?|leaf|heart|heart and veins|ribcage|urinary|eye|human|flower|comparison|body temperature|overview|conservation)$/i;
 function names(en) {
   const m = String(en || '').match(/^(.*?)\s*\((.*)\)\s*$/);
   const main = (m ? m[1] : String(en || '')).trim();
-  const also = m ? m[2].split(/[;,/]|\bor\b/).map(x => x.replace(/^\s*(plural|singular|also|abbreviation)\s*:\s*/i, '').trim()).filter(x => x && x.length > 1) : [];
-  return { main, also, all: [main].concat(also).map(x => x.toLowerCase()) };
+  const words = m ? m[2].split(/[;,/]|\bor\b/).map(x => x.replace(/^\s*(plural|singular|also|abbreviation)\s*:\s*/i, '').trim()).filter(x => x && x.length > 1) : [];
+  const list = m && /^\s*types?\s*:/i.test(m[2]);          /* "Tooth (types: incisor, canine, …)": kinds of it, not names */
+  const ctx = words.filter(x => list || QUALIFIER.test(x));
+  return { main, also: words.filter(x => !ctx.includes(x)), ctx, words, all: [main].concat(words).map(x => x.toLowerCase()) };
 }
+/* a word of the prompt that still spells the answer: the answer's head word inside a longer word (oxyhaemoglobin,
+   ciliated, phototropism) or used as a label (the palisade mesophyll, iodine solution) */
+function giveaway(text, N) {
+  const stem = w => { w = w.toLowerCase(); return w.length > 6 ? w.slice(0, -2) : w.length > 4 ? w.slice(0, -1) : w; };
+  const heads = [N.main].concat(N.also).map(x => (x.match(/[A-Za-z]+/) || [''])[0]).filter(w => w.length >= 5).map(stem);
+  return String(text).replace(/______/g, ' ').split(/[^A-Za-z]+/).filter(w => w && heads.some(h => w.toLowerCase().includes(h)));
+}
+/* the meanings question's prompt: the keyword's own `ask`, or the definition's first sentence, blanked */
+function promptFor(k, N) {
+  const blank = t => [N.main].concat(N.also).reduce((p, n) => maskTerm(p, n), t);
+  if (k.ask) return blank(k.ask);
+  const S = sentences(k.en_def);
+  let p = blank(S[0] || '');
+  if (S[0] && S[0].split(/\s+/).length < 7 && S[1]) { const two = blank(S[0] + ' ' + S[1]); if (!giveaway(two, N).length) p = two; }
+  if (giveaway(p, N).length) {
+    p = p.replace(/\s*\((?:[^()]|\([^()]*\))*\)/g, a => giveaway(a, N).length ? '' : a)
+         .replace(/,?\s*\b(?:e\.g\.|i\.e\.)[^.;]*(?=[.;]?$)/, a => giveaway(a, N).length ? '' : a)
+         .replace(/\s+([.,;:])/g, '$1').trim();
+    if (!/[.?!]$/.test(p)) p += '.';
+  }
+  return p;
+}
+/* single-word answers the gate below lets through: the prompt contrasts words from one root on purpose */
+const GIVEAWAY_OK = { solvent: 'dissolve, solute and solution are the words it is told apart from' };
 function seeded(id) { let h = 2166136261; for (const c of id) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return () => { h = (Math.imul(h, 1664525) + 1013904223) >>> 0; return h / 4294967296; }; }
 const kwByUnit = {};
 KEYWORDS.forEach(k => { const u = unitOfKeyword(k); if (u) (kwByUnit[u] = kwByUnit[u] || []).push(k); });
+const PARENT = { 't14-5': 't14', 't16-3': 't16' };   /* the units cut out of a topic, and where their wrong choices can also come from */
 const AUTO_MAX = 24;
 for (const [uid, list] of Object.entries(kwByUnit)) {
   const sorted = list.slice().sort((a, b) => String(a.subtopic).localeCompare(String(b.subtopic), 'en', { numeric: true }) || (b.strict ? 1 : 0) - (a.strict ? 1 : 0));
@@ -245,13 +289,19 @@ for (const [uid, list] of Object.entries(kwByUnit)) {
       const same = pool.filter(o => o.subtopic === k.subtopic), rest = pool.filter(o => o.subtopic !== k.subtopic);
       const pickFrom = (arr, n) => { const a = arr.slice(); const out = []; while (a.length && out.length < n) out.push(a.splice(Math.floor(rnd() * a.length), 1)[0]); return out; };
       let wrong = pickFrom(same, 3); if (wrong.length < 3) wrong = wrong.concat(pickFrom(rest, 3 - wrong.length));
-      let prompt = firstSentence(k.en_def);
-      [N.main].concat(N.also).forEach(t => { prompt = maskTerm(prompt, t); });
+      if (wrong.length < 3 && PARENT[uid]) wrong = wrong.concat(pickFrom((kwByUnit[PARENT[uid]] || []).filter(o => !clash(o)), 3 - wrong.length));
+      const prompt = promptFor(k, N);
+      if (N.main.split(/\s+/).length === 1 && !GIVEAWAY_OK[k.id] && giveaway(prompt, { main: N.main, also: [] }).length)
+        bad('keyword ' + k.id, `the meanings prompt still spells the answer ("${giveaway(prompt, { main: N.main, also: [] }).join('", "')}"): give the keyword an ask in the master`);
       /* a keyword may carry the fuller biology behind its examined definition; the card folds it away */
-      return { id: 'kwm.' + k.id, type: 'kw', input: 'choose', key: N.main, accept: N.also, full: k.en, prompt, def: k.en_def, ko: k.ko || '',
+      return { id: 'kwm.' + k.id, type: 'kw', input: 'choose', key: N.main, accept: N.words, full: k.en, prompt, def: k.en_def, ko: k.ko || '',
                ...(k.deeper ? { deeper: k.deeper } : {}), ...(k.older ? { older: k.older } : {}),
                opts: [N.main].concat(wrong.map(o => names(o.en).main)), src: 'Keyword list' + (k.subtopic ? ' · syllabus ' + k.subtopic : '') };
-    }).filter(it => it.opts.length === 4 && new Set(it.opts.map(o => o.toLowerCase())).size === 4);
+    }).filter(it => {
+      if (it.opts.length === 4 && new Set(it.opts.map(o => o.toLowerCase())).size === 4) return true;
+      bad('keyword ' + it.id.slice(4), 'fewer than three other keywords to choose from, so its meanings question cannot be built');
+      return false;
+    });
     SETS[sid] = { id: sid, unit: uid, kind: 'kw', auto: true,
       title: 'Keywords: meanings' + (parts > 1 ? ' ' + (p + 1) : ''),
       blurb: 'Every keyword of the topic, from its definition' + (parts > 1 ? ' (part ' + (p + 1) + ' of ' + parts + ')' : ''), items };
