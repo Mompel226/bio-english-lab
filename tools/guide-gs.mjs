@@ -23,11 +23,11 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.resolve(HERE, '..', '..', 'bio-english-lab-source');
-/* The reflection system's own folders: ONE copy of each file, in Daniel's two synced project
-   folders, never a third in this source tree. Both are written, because they are kept identical. */
+/* The reflection system's own folder: ONE copy of each file, in Daniel's synced project folder
+   "Code" (one folder since 28 Sep 2026: the numbered .gs files at its top), never a second in this
+   source tree. */
 const REFLECT = [
-  '/Users/NLCS/Library/CloudStorage/OneDrive-Personal/NLCS/IGCSE/AppScript/AppScript REFLECTION System/Claude code',
-  '/Users/NLCS/Library/CloudStorage/OneDrive-Personal/NLCS/IGCSE/AppScript/AppScript REFLECTION System/Final code'
+  '/Users/NLCS/Library/CloudStorage/OneDrive-Personal/NLCS/IGCSE/AppScript/AppScript REFLECTION System/Code'
 ].filter(d => fs.existsSync(d));
 const OUT = REFLECT.length ? REFLECT : [path.join(SRC, 'out', 'reflection')];
 function writeReflection(name, text) {
