@@ -87,7 +87,7 @@
      deeper: the biology behind the answer the examiner wants. Folded away, because the exam
              answer comes first: "name another part of the small intestine" wants ileum or
              duodenum, and the jejunum — real, but not in this syllabus — belongs in here. */
-  /* A keyword the 2026–28 syllabus does not name (Daniel, 28 Sep 2026): meta.past, from the build. It is display only
+  /* A keyword the 2026–2029 syllabus (2026–2028, and 2029, which is the same) does not name (Daniel, 28 Sep 2026): meta.past, from the build. It is display only
      and never part of a question, so nothing resets; a card says it after it is answered, never before, so it can
      never hint at the answer. The Keywords page shows the same words (app.js). */
   function pastMeta() { return (global.AL && global.AL.meta && global.AL.meta.past) || null; }
@@ -112,7 +112,7 @@
       var s = P.st[p.old] || {};
       return '<b>From an older syllabus.</b> In the 0610 syllabus until ' + T.esc(s.until || '') + (s.tier ? ' (' + T.esc(s.tier) + ')' : '') +
         ': \u201c' + T.esc(s.text || '') + '\u201d. ' +
-        T.esc(s.note || ('It is not in the 2026\u201328 syllabus, but an exam question can still use it, and past papers up to ' + (s.until || '') + ' may ask it directly.'));
+        T.esc(s.note || ('It is not in the 2026\u20132029 syllabus, but an exam question can still use it, and past papers up to ' + (s.until || '') + ' may ask it directly.'));
     }
     if (p.beyond) return '<b>Beyond the 0610 syllabus.</b> The syllabus does not include this, but it is worth knowing: an exam question can still use it.';
     return '<b>A word the syllabus does not use.</b> The idea is in the syllabus (' + T.esc(p.word || '') + '), in other words. Questions and mark schemes can still use this word.';

@@ -434,6 +434,16 @@ for (const [uid, list] of Object.entries(kwByUnit)) {
    question's fingerprint covers, so nothing resets: `old` names a statement of labs-shared/syllabus-past.json,
    `beyond` is outside the syllabus, `word` is an idea the syllabus has under other words. Drawn on the Keywords page
    and under an answered keyword card, never on a question before it is answered. */
+/* which syllabus versions exist, and which share content (2029 = 2026–2028): each year's page turns the year group
+   into the year of its IGCSE exams and so its syllabus, from the same files as the labs' IGCSE 0610 badge */
+meta.sylYears = [];
+if (shared) {
+  try { meta.sylYears = Object.keys(JSON.parse(fs.readFileSync(path.join(shared, 'syllabus.json'), 'utf8'))).map(id => ({ id })); } catch (e) {}
+  try {
+    for (const [id, x] of Object.entries(JSON.parse(fs.readFileSync(path.join(shared, 'syllabus-versions.json'), 'utf8'))))
+      if (!id.startsWith('_') && x.same) meta.sylYears.push({ id, same: x.same });
+  } catch (e) {}
+}
 meta.past = { st: {}, id: {} };
 {
   const f = path.join(SRC, 'past-keywords.json');

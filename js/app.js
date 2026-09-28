@@ -211,6 +211,8 @@
       '<p class="sec__p">The topics each year group studies at NLCS. Every topic has keyword tests and its own describe, explain and plan questions, all marked as you go.</p>';
     var years = h('div', 'years'); years.setAttribute('role', 'tablist');
     var mineY = server && server.cls ? parseInt(String(server.cls).match(/\d+/) || '', 10) : null;
+    /* the class in the teacher's spreadsheet says whose exams are when: the labs and the hub read the same key */
+    if (mineY >= 9 && mineY <= 11) { try { localStorage.setItem('labs.examYear', String(examYearOf(mineY))); } catch (e) {} }
     var y = year || P.year || (META.years.some(function (Y) { return Y.y === mineY; }) ? mineY : null) || (META.years[0] && META.years[0].y);
     var ledger = h('div', 'ledger');
     META.years.forEach(function (Y) {
@@ -237,10 +239,30 @@
     c.appendChild(ol);
     return c;
   }
+  /* Each year group's IGCSE exams, and so its syllabus (Daniel, 28 Sep 2026: "make very clear ... which syllabus is
+     for what year"). The school year turns over on 1 August, so 2026–27 ends with the June 2027 exams. A student is
+     kept as the year of their exams ('labs.examYear', shared with the hub and the labs' IGCSE 0610 badge), so next
+     August a Year 9 becomes a Year 10 by itself. */
+  function schoolYearEnd() { var d = new Date(); return d.getMonth() >= 7 ? d.getFullYear() + 1 : d.getFullYear(); }
+  function examYearOf(g) { return schoolYearEnd() + (11 - g); }
+  function examLine(g) {
+    var e = examYearOf(g), L = META.sylYears || [], hit = null, newest = null;
+    L.forEach(function (v) {
+      var m = /^(\d{4})(?:-(\d{4}))?$/.exec(v.id); if (!m) return;
+      var a = +m[1], b = +(m[2] || m[1]);
+      if (e >= a && e <= b) hit = v;
+      if (!newest || b > newest.b) newest = { v: v, b: b };
+    });
+    var lab = function (id) { return String(id).replace('-', '\u2013'); };
+    var s = 'Year ' + g + ' in ' + (schoolYearEnd() - 1) + '\u2013' + String(schoolYearEnd()).slice(2) + ': IGCSE exams in ' + e;
+    if (hit) return s + ' \u2192 the syllabus for ' + lab(hit.id) + (hit.same ? ', word for word the same as ' + lab(hit.same) : '') + '.';
+    return s + (newest ? ' \u2192 Cambridge has not published that syllabus yet; until it does, the newest is for ' + lab(newest.v.id) + '.' : '.');
+  }
   function paintLedger(host, y) {
     host.innerHTML = '';
     var Y = META.years.filter(function (x) { return x.y === y; })[0];
     if (!Y) return;
+    host.appendChild(h('p', 'ledger__exam', T.esc(examLine(Y.y))));
     var yt = yearTally(Y);
     host.appendChild(h('p', 'ledger__sum', '<b>' + T.esc(Y.title) + ':</b> ' + yt.done + ' of ' + yt.total + ' questions answered (' + pct(yt.done, yt.total) + '%)' +
       (me ? '' : ' \u00b7 <span class="ledger__note">Kept in this browser. Sign in with your school account and it is recorded for your teacher.' +
@@ -471,7 +493,7 @@
     var dl = h('dl', 'words');
     W.forEach(function (x) {
       var g = h('div', 'words__i');   /* a word and its definition stay together across the columns */
-      /* a word the 2026–28 syllabus does not name: its chip opens a line saying which syllabus had it, or that the idea
+      /* a word the 2026–2029 syllabus does not name: its chip opens a line saying which syllabus had it, or that the idea
          is in the syllabus in other words (meta.past; a button, because a hover tip reaches no phone and no keyboard) */
       var p = E.pastOfId ? E.pastOfId(x.id) : null;
       var chip = !p ? '' : ' <button type="button" class="words__past words__past--' + (p.old ? 'old' : p.beyond ? 'beyond' : 'word') + '" aria-expanded="false">' +
