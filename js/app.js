@@ -471,9 +471,19 @@
     var dl = h('dl', 'words');
     W.forEach(function (x) {
       var g = h('div', 'words__i');   /* a word and its definition stay together across the columns */
-      g.appendChild(h('dt', 'words__t', T.esc(x.t) + (x.sup ? ' <span class="words__sup">Supplement</span>' : '') + (x.ko && CFG.koreanGloss !== false ? ' <span class="words__ko" lang="ko">' + T.esc(x.ko) + '</span>' : '')));
-      g.appendChild(h('dd', 'words__d', T.esc(x.d)));
+      /* a word the 2026–28 syllabus does not name: its chip opens a line saying which syllabus had it, or that the idea
+         is in the syllabus in other words (meta.past; a button, because a hover tip reaches no phone and no keyboard) */
+      var p = E.pastOfId ? E.pastOfId(x.id) : null;
+      var chip = !p ? '' : ' <button type="button" class="words__past words__past--' + (p.old ? 'old' : p.beyond ? 'beyond' : 'word') + '" aria-expanded="false">' +
+        (p.old ? 'old syllabus \u00b7 until ' + T.esc(((META.past.st || {})[p.old] || {}).until || '') : p.beyond ? 'beyond 0610' : 'word not in 0610') + '</button>';
+      g.appendChild(h('dt', 'words__t', T.esc(x.t) + (x.sup ? ' <span class="words__sup">Supplement</span>' : '') + chip + (x.ko && CFG.koreanGloss !== false ? ' <span class="words__ko" lang="ko">' + T.esc(x.ko) + '</span>' : '')));
+      g.appendChild(h('dd', 'words__d', T.esc(x.d) + (p ? '<span class="words__pnote' + (p.old ? '' : ' words__pnote--plain') + '" hidden>' + E.pastText(p) + '</span>' : '')));
       dl.appendChild(g);
+    });
+    dl.addEventListener('click', function (e) {
+      var b = e.target.closest('.words__past'); if (!b) return;
+      var n = b.closest('.words__i').querySelector('.words__pnote'); if (!n) return;
+      n.hidden = !n.hidden; b.setAttribute('aria-expanded', n.hidden ? 'false' : 'true');
     });
     w.appendChild(dl);
     /* The sentence frames this topic teaches, gathered from its own questions: the shapes to

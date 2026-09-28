@@ -515,6 +515,19 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
 .words__d { margin: 4px 0 0; padding-bottom: 14px; border-bottom: 1px solid var(--rule); color: var(--ink-2); }
 .words__ko { font: 400 14px/1 var(--sans); color: var(--muted); margin-left: 8px; }
 .words__sup { font: 500 10.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--purple); border: 1px solid var(--purple-hl); border-radius: 4px; padding: 2px 5px; margin-left: 6px; vertical-align: middle; }
+/* a keyword the 2026–28 syllabus does not name (meta.past): the chip is a button that opens its line under the definition */
+.words__past { font: 500 10.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; background: transparent; border-radius: 4px; padding: 3px 6px; margin-left: 6px; vertical-align: middle; cursor: pointer; }
+.words__past--old { color: var(--amber); border: 1px solid rgba(138, 83, 6, .45); }
+.words__past--beyond, .words__past--word { color: var(--muted); border: 1px solid var(--rule); }
+.words__past[aria-expanded="true"] { background: rgba(138, 83, 6, .08); }
+.words__past:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.words__pnote { display: block; margin-top: 8px; padding: 8px 10px; border-left: 3px solid var(--amber); background: rgba(138, 83, 6, .06); font-size: 14.5px; line-height: 1.45; color: var(--ink-2); }
+.words__pnote[hidden] { display: none; }
+.words__pnote b { color: var(--amber); }
+.words__pnote--plain { border-left-color: var(--rule); background: rgba(0, 0, 0, .03); }
+.words__pnote--plain b { color: var(--ink); }
+.model__old--plain { border-left-color: var(--rule); background: rgba(0, 0, 0, .03); }
+.model__old--plain b { color: var(--ink); }
 .who__t { color: #9EE6B8; font-size: 12.5px; font-weight: 600; text-decoration: none; border: 1px solid #2F5D45; border-radius: var(--pill); padding: 6px 12px; }
 
 /* ---------- review ---------- */

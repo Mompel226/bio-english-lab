@@ -427,7 +427,28 @@ meta.known = Array.from(known).filter(Boolean).sort();
 meta.words = {};
 for (const [uid, list] of Object.entries(kwByUnit)) {
   meta.words[uid] = list.slice().sort((a, b) => String(a.subtopic).localeCompare(String(b.subtopic), 'en', { numeric: true }))
-    .map(k => ({ t: k.en, d: k.en_def, ko: k.ko || '', s: k.subtopic || '', sup: !!k.sup }));
+    .map(k => ({ id: k.id, t: k.en, d: k.en_def, ko: k.ko || '', s: k.subtopic || '', sup: !!k.sup }));
+}
+/* The keywords the 2026–28 syllabus does not name (Daniel, 28 Sep 2026: check them against the older syllabuses and say
+   which one each belongs to). From a side file, ../bio-english-lab-source/past-keywords.json, into meta — which no
+   question's fingerprint covers, so nothing resets: `old` names a statement of labs-shared/syllabus-past.json,
+   `beyond` is outside the syllabus, `word` is an idea the syllabus has under other words. Drawn on the Keywords page
+   and under an answered keyword card, never on a question before it is answered. */
+meta.past = { st: {}, id: {} };
+{
+  const f = path.join(SRC, 'past-keywords.json');
+  const PS = shared ? JSON.parse(fs.readFileSync(path.join(shared, 'syllabus-past.json'), 'utf8')).statements : {};
+  const shippedIds = new Set(Object.values(kwByUnit).flat().map(k => k.id));
+  if (fs.existsSync(f)) for (const [id, x] of Object.entries(JSON.parse(fs.readFileSync(f, 'utf8')).keywords || {})) {
+    if (!shippedIds.has(id)) { warn.push(`past-keywords.json: ${id} is not a keyword on the site`); continue; }
+    if (x.old) {
+      const st = PS[x.old];
+      if (!st) { bad('past-keywords.json', `${id}: no statement ${x.old} in labs-shared/syllabus-past.json`); continue; }
+      meta.past.st[x.old] = { until: st.until, tier: st.tier || '', text: st.text, note: st.note || '' };
+      meta.past.id[id] = { old: x.old };
+    } else if (x.beyond) meta.past.id[id] = { beyond: true };
+    else if (x.word) meta.past.id[id] = { word: String(x.word) };
+  }
 }
 /* Every sentence frame the topic teaches, gathered in one place. The frames are scattered through
    the questions, where they are used one at a time; a student revising wants to see the shapes
