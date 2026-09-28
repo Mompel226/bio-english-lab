@@ -87,9 +87,41 @@
      deeper: the biology behind the answer the examiner wants. Folded away, because the exam
              answer comes first: "name another part of the small intestine" wants ileum or
              duodenum, and the jejunum — real, but not in this syllabus — belongs in here. */
+  /* A keyword the 2026–28 syllabus does not name (Daniel, 28 Sep 2026): meta.past, from the build. It is display only
+     and never part of a question, so nothing resets; a card says it after it is answered, never before, so it can
+     never hint at the answer. The Keywords page shows the same words (app.js). */
+  function pastMeta() { return (global.AL && global.AL.meta && global.AL.meta.past) || null; }
+  var pastByTerm = null;
+  function pastOfId(id) { var P = pastMeta(); return P && id ? P.id[id] || null : null; }
+  function pastOfItem(item) {
+    if (item.type !== 'kw') return null;
+    var id = String(item.id || '').indexOf('kwm.') === 0 ? String(item.id).slice(4) : null;
+    if (!id && item.key && pastMeta()) {
+      if (!pastByTerm) {
+        pastByTerm = {};
+        var W = (global.AL.meta.words) || {};
+        Object.keys(W).forEach(function (u) { W[u].forEach(function (x) { if (x.id) pastByTerm[String(x.t).toLowerCase()] = x.id; }); });
+      }
+      id = pastByTerm[String(item.key).toLowerCase()];
+    }
+    return pastOfId(id);
+  }
+  function pastText(p) {
+    var P = pastMeta() || { st: {} };
+    if (p.old) {
+      var s = P.st[p.old] || {};
+      return '<b>From an older syllabus.</b> In the 0610 syllabus until ' + T.esc(s.until || '') + (s.tier ? ' (' + T.esc(s.tier) + ')' : '') +
+        ': \u201c' + T.esc(s.text || '') + '\u201d. ' +
+        T.esc(s.note || ('It is not in the 2026\u201328 syllabus, but an exam question can still use it, and past papers up to ' + (s.until || '') + ' may ask it directly.'));
+    }
+    if (p.beyond) return '<b>Beyond the 0610 syllabus.</b> The syllabus does not include this, but it is worth knowing: an exam question can still use it.';
+    return '<b>A word the syllabus does not use.</b> The idea is in the syllabus (' + T.esc(p.word || '') + '), in other words. Questions and mark schemes can still use this word.';
+  }
   function extrasHTML(item) {
     var out = '';
     if (item.older) out += '<p class="model__old"><b>From an older syllabus.</b> ' + T.tags(item.older) + '</p>';
+    var pk = pastOfItem(item);
+    if (pk) out += '<p class="model__old' + (pk.old ? '' : ' model__old--plain') + '">' + pastText(pk) + '</p>';
     if (item.deeper) out += '<details class="deep"><summary>The fuller biology</summary>' +
       '<div class="deep__b">' + T.tags(item.deeper) + '</div></details>';
     return out;
@@ -992,5 +1024,6 @@
     if (!mk) { var e = h('article', 'card', '<p>Unknown question type: ' + T.esc(item.type) + '</p>'); return e; }
     return mk(item, ctx || {});
   }
-  global.AEngine = { render: render, KIND: KIND, modelBlock: modelBlock, legend: legend, parseChoices: parseChoices, parseGaps: parseGaps };
+  global.AEngine = { render: render, KIND: KIND, modelBlock: modelBlock, legend: legend, parseChoices: parseChoices, parseGaps: parseGaps,
+                     pastOfId: pastOfId, pastText: pastText };
 })(window);
