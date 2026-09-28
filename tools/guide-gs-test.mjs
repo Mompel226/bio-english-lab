@@ -7,9 +7,8 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-/* the generator writes into Daniel's two reflection folders; read the same place (out/reflection is the fallback) */
-const REFLECT = ['/Users/NLCS/Library/CloudStorage/OneDrive-Personal/NLCS/IGCSE/AppScript/AppScript REFLECTION System/Claude code',
-  '/Users/NLCS/Library/CloudStorage/OneDrive-Personal/NLCS/IGCSE/AppScript/AppScript REFLECTION System/Final code']
+/* the generator writes into Daniel's reflection folder "Code"; read the same place (out/reflection is the fallback) */
+const REFLECT = ['/Users/NLCS/Library/CloudStorage/OneDrive-Personal/NLCS/IGCSE/AppScript/AppScript REFLECTION System/Code']
   .filter(d => fs.existsSync(path.join(d, '6_QuestionGuide.gs')));
 const OUT = REFLECT[0] || path.resolve(HERE, '..', '..', 'bio-english-lab-source', 'out', 'reflection');
 const ORIG = process.argv[2];   /* optional: the patched dashboard keeps the original cards and renderer */

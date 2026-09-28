@@ -19,12 +19,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.resolve(HERE, '..', '..', 'bio-english-lab-source');
 const MASTER = path.join(SRC, 'keywords.master.js');
-/* The reflection system's own folders. Daniel keeps ONE copy of each of these files, in his two
-   synced project folders — never a third in this repository's source tree, which is what these
-   tools used to write. Both folders are written, because they are meant to be identical. */
+/* The reflection system's own folder. Daniel keeps ONE copy of each of these files, in his synced
+   project folder "Code" (one folder since 28 Sep 2026, laid out like the old Final code: the numbered
+   .gs files at its top) — never a second in this repository's source tree, which is what these
+   tools used to write. */
 const REFLECT = [
-  '/Users/NLCS/Library/CloudStorage/OneDrive-Personal/NLCS/IGCSE/AppScript/AppScript REFLECTION System/Claude code',
-  '/Users/NLCS/Library/CloudStorage/OneDrive-Personal/NLCS/IGCSE/AppScript/AppScript REFLECTION System/Final code'
+  '/Users/NLCS/Library/CloudStorage/OneDrive-Personal/NLCS/IGCSE/AppScript/AppScript REFLECTION System/Code'
 ].filter(d => fs.existsSync(d));
 /* not on this machine? fall back to a working copy, so the tool still runs */
 const FALLBACK = path.join(SRC, 'out', 'reflection');
