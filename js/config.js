@@ -16,16 +16,22 @@ window.AL_CONFIG = {
 
   /* Each student's own dashboard (the Assessment Reflection System's record page). It shows how
      they did on every command word and topic, so it is where a student decides what to practise
-     here. There is one address for everyone: the page knows who is looking from their school
-     Google sign-in. Before offering the link the site asks the labs' script — the same `record`
-     question the Biology Hub asks — whether this student has reflected yet: a student who has not
-     done a first reflection is told so, instead of being sent to an empty page. The same two
-     addresses as the hub's js/local.js. Delete this block and the link never appears. */
+     here. The page knows who is looking from their school Google sign-in. Before offering the link
+     the site asks the labs' script — the same `record` question the Biology Hub asks — whether this
+     student has reflected yet: a student who has not done a first reflection is told so, instead of
+     being sent to an empty page. `url` is only the FALLBACK, as in the hub's js/local.js: every
+     assessment has its own reflection copy, and the record answer carries the newest one's address
+     (`myAssessments`, reflection spec §40.78), which the link follows. The same two addresses as the
+     hub's js/local.js. Delete this block and the link never appears. */
   record: {
     askUrl: 'https://script.google.com/macros/s/AKfycbzwjMHaa88OL_GzR8wZ2mV6a8rs1CKYahbW5iOTQPyzWzCGIrAZPApGsP2oujK34tRc/exec',
     url: 'https://script.google.com/a/macros/nlcsjeju.kr/s/AKfycbwAAX9kcTatrOrUcKF3uvhYHrTULe4xQvQ4oE7nAzKW5L-7-Z7A1mQ8Tt3LWap3ONic/exec?page=student',
     domain: 'nlcsjeju.kr'
   },
+
+  /* The Command words page quotes "What the mark scheme credits" under each real example. Set
+     this to false to hide those quoted lines on the public page; true is also the default. */
+  showSchemes: true,
 
   /* Show the Korean name of a keyword under its English one, after it has been answered.
      The translations come from the keyword list shared with the reflection system. */

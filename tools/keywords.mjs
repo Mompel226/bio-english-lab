@@ -9,8 +9,13 @@
    So a definition corrected once is corrected in both places.
 
      node tools/keywords.mjs import <path to 5_IgcseBiologyKeywords.gs>   make the master from the .gs (once)
-     node tools/keywords.mjs gs                                            write ../bio-english-lab-source/out/5_IgcseBiologyKeywords.gs
+     node tools/keywords.mjs gs          write Code/5_IgcseBiologyKeywords.gs in the REAL reflection folder, by
+                                         absolute path (…/AppScript REFLECTION System/Code/; out/reflection/ only
+                                         on a machine without it). Run from a copy of this repository, it still
+                                         writes the real file. Then raise REFLECTION_BUILD in Code/Code.gs.
      node tools/keywords.mjs check <path to a pasted .gs>                  is that copy the same as the master?
+     node tools/keywords.mjs patch <review.json>…                          apply reviewed edits to the master:
+                                         a change lands only while the field still holds its `old` value
    ============================================================ */
 import fs from 'node:fs';
 import path from 'node:path';

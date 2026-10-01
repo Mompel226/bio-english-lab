@@ -85,12 +85,14 @@ the answer away), so tags there are harmless but pointless.
   items: [ … ] }
 ```
 
-A set is 6–10 questions (keyword sets 12–24), about 10–15 minutes: something a teacher can set as
-homework. Order the questions so the support fades: learn → pick → choose → build → fix/trim →
+Aim for 6–10 questions, about 10–15 minutes: something a teacher can set as homework. Plan and
+method sets may be shorter. The automatic "Keywords: meanings" sets follow the topic's keyword
+count, split at 24 (`AUTO_MAX` in `tools/build.mjs`). Order the questions so the support fades: learn → pick → choose → build → fix/trim →
 order → gap → mark → exam. The first card of a describe/explain/plan set may be a `learn` card that
 teaches this topic's version of the method.
 
-Every set must also be listed, in order, in `units.master.js` under its unit's `sets`.
+List a set under its unit's `sets` in `units.master.js` to fix its order; a set that is not listed is
+added at the end of its unit, in file order (the automatic keyword sets always go first).
 
 ## The question types
 
@@ -98,6 +100,7 @@ Common fields: `id` (unique, never reused, e.g. `t7e.04`), `type`, `cmd` (the co
 Describe, Explain, Suggest, State, Plan…), `marks`, `q` (the exam question), `task` (what to do on
 this card, one line), `model`, `src`, optional `note` (one plain-English line about the mark scheme —
 write "The mark scheme ignores “water concentration”", not "I water concentration"), optional
+`modelTitle` (the model answer's heading, "Model answer" if left out), optional
 `figure` (`{ graph:{…} }` or `{ table:{ head:[…], rows:[[…]] } }`, plus `cap`).
 
 | type | fields | how it is marked |
@@ -106,7 +109,7 @@ write "The mark scheme ignores “water concentration”", not "I water concentr
 | `pick` | `options: [{ t, ok:true, why }, { t, why }…]` — exactly one `ok` | the choice |
 | `choose` | `text` with `[[right|wrong~why|wrong~why]]` slots; first option is right | each slot |
 | `build` | `chunks` (the answer, in order, 3–6 phrase-sized pieces), `extra` (1–2 pieces that score nothing), optional `orders` (other right orders as index lists) | whole line |
-| `fix` | `text` with `{weak}` words, `flaws: [{ fix, opts:[…fix among them], why }]` in order | each word |
+| `fix` | `text` with `{weak}` words, `flaws: [{ fix, opts:[…fix among them], why }]` in order; optional `find: true` makes the student find the weak words first (no underlines) | each word |
 | `trim` | `chunks: [{ t }, { t, x:true, why }]` — `x` = scores nothing, strike it | whole answer |
 | `order` | `steps` in the right order (3–6) | whole order |
 | `gap` | `text` with `{{answer|also accepted}}` gaps | each gap (spelling slips forgiven, but never one that makes another biology word) |
