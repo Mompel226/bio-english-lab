@@ -3,19 +3,37 @@
    tools/guide-gs.mjs — the command-word guide, for the reflection system's student dashboard.
 
    The guide has ONE master: ../bio-english-lab-source/guide.master.json. This site's "Command
-   words" page is built from it (tools/build.mjs). This tool makes the dashboard's copy:
+   words" page is built from it (tools/build.mjs). This tool makes the dashboard's copy, and it
+   writes STRAIGHT INTO THE REAL REFLECTION FOLDER, by absolute path:
+     …/IGCSE/AppScript/AppScript REFLECTION System/Code/
+   (../bio-english-lab-source/out/reflection/ only on a machine that has no such folder). There is no
+   dry run: run from a copy of this repository, it still writes the real folder.
 
-     node tools/guide-gs.mjs <path to the live 4_StudentDashboardHTML.gs>
+     node tools/guide-gs.mjs --guide-only
+         THE SAFE WAY, and the one to use: writes Code/6_QuestionGuide.gs alone (the guide as data,
+         plus qsGuideLegacy_(), which turns it into the dashboard's own card shapes). The dashboard,
+         Code/4_StudentDashboardHTML.gs, is not touched. Then raise REFLECTION_BUILD in Code/Code.gs.
 
-   writes ../bio-english-lab-source/out/reflection/
-     6_QuestionGuide.gs          NEW file for the reflection project: the guide as data, plus
-                                 qsGuideLegacy_(), which turns it into the dashboard's own shapes
-     4_StudentDashboardHTML.gs   a COPY of the given file with small, exact edits: two blocks that
-                                 use the guide when 6_QuestionGuide.gs is present (and change nothing
-                                 when it is not), card counts that follow the data, and the corrected
-                                 decoder and worked-example sentences
-   Every edit must find its original text exactly once, or the tool stops and changes nothing —
-   so a dashboard that has moved on since is never patched blind.
+     node tools/guide-gs.mjs <an UNPATCHED 4_StudentDashboardHTML.gs> --full-i-know-it-drops-hand-edits
+         FULL mode, refused without that flag. It also REBUILDS Code/4_StudentDashboardHTML.gs: the
+         copy you name (an old one from OneDrive history — the live file carries the marker
+         "BIO ENGLISH LAB EDITS APPLIED" and is refused) plus the 13 edits below, and nothing else.
+         Every hand edit made to 4_ since then is DROPPED, silently: the §40.87 escapes (the plan
+         JSON's "</" and the coaching's "<"), the "Which syllabus" block (28 Sep 2026), the §40.92
+         edits in _loadBatchedCoaching, and §40.94's rule that a card with no real example shows no
+         "Real example". Carry each of them into the edit list below before you ever use it.
+
+   The 13 edits (full mode only). Each must find its original text exactly once, or the tool stops
+   and writes no dashboard, so a dashboard that has moved on is never patched blind:
+      1 ?tab=commands (any tab id) opens the dashboard on that tab
+      2 each card links to "Practise it" on Bio English Lab
+      3 the command-word maps (CMD_DESCRIPTIONS, CMD_TO_PATTERN) come from 6_QuestionGuide.gs
+      4 the pattern cards and the mistakes come from 6_QuestionGuide.gs (unchanged without it)
+      5 and 6 the two card counts follow the data (command words, skills)
+      7 the hero sentence
+      8, 9 and 10 the decoder's signals 1, 3 and 4
+     11, 12 and 13 the worked example's signals 3 and 4, and its tip
+   and then the worked example's model answer, when its old text is there.
    ============================================================ */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -34,11 +52,35 @@ function writeReflection(name, text) {
   OUT.forEach(d => { fs.mkdirSync(d, { recursive: true }); fs.writeFileSync(path.join(d, name), text); console.log('✓ written: ' + path.join(d, name)); });
 }
 const G = JSON.parse(fs.readFileSync(path.join(SRC, 'guide.master.json'), 'utf8'));
-const dashPath = process.argv[2];
-if (!dashPath) { console.error('usage: node tools/guide-gs.mjs <4_StudentDashboardHTML.gs> | --guide-only'); process.exit(1); }
+const ARGS = process.argv.slice(2);
 /* --guide-only: the guide's text changed but the dashboard's 13 edits are already in place — write
    6_QuestionGuide.gs alone and leave the dashboard untouched */
-const guideOnly = dashPath === '--guide-only';
+const guideOnly = ARGS.includes('--guide-only');
+const FULL = '--full-i-know-it-drops-hand-edits';
+const dashPath = ARGS.filter(a => !a.startsWith('--'))[0];
+if (!guideOnly && !dashPath) {
+  console.error('usage: node tools/guide-gs.mjs --guide-only     (the safe way: 6_QuestionGuide.gs alone)\n' +
+    '   or: node tools/guide-gs.mjs <an UNPATCHED 4_StudentDashboardHTML.gs> ' + FULL);
+  process.exit(1);
+}
+/* Full mode rebuilds the live dashboard from an old copy, so it would silently undo every hand edit made
+   to 4_ since (found on 30 Sep 2026: nothing had been lost yet, only because nobody had run it). It stops
+   before writing anything unless it is asked for by name. */
+if (!guideOnly && !ARGS.includes(FULL)) {
+  console.error([
+    '✗ Full mode is switched off, and nothing was written.',
+    '  It REBUILDS AppScript REFLECTION System/Code/4_StudentDashboardHTML.gs from the copy you name, with',
+    '  only this tool\'s own 13 edits, so every hand edit made to that file since is DROPPED:',
+    '    · the §40.87 escapes (the plan JSON\'s "</" and the coaching\'s "<"),',
+    '    · the "Which syllabus" block (28 Sep 2026),',
+    '    · the §40.92 edits in _loadBatchedCoaching,',
+    '    · §40.94: a card with no real example shows no "Real example" section.',
+    '  The safe path:  node tools/guide-gs.mjs --guide-only   (writes 6_QuestionGuide.gs alone;',
+    '  the dashboard is untouched). Only once every edit above is in this tool\'s edit list:',
+    '  add ' + FULL + '.'
+  ].join('\n'));
+  process.exit(1);
+}
 const dash = guideOnly ? '' : fs.readFileSync(dashPath, 'utf8');
 if (!guideOnly && /BIO ENGLISH LAB EDITS APPLIED/.test(dash)) {
   console.error('That dashboard already carries these edits — it is the patched file, not the original.\n' +
@@ -47,11 +89,20 @@ if (!guideOnly && /BIO ENGLISH LAB EDITS APPLIED/.test(dash)) {
 }
 
 /* ---------- 6_QuestionGuide.gs ---------- */
+function exampleOf(x) {
+  if (!x) return null;
+  return Object.assign({ source: x.source, stem: x.stem, marks: x.marks, markScheme: x.markScheme || [], guidance: x.guidance || [], model: x.model || '' },
+    x.figureNote ? { figureNote: x.figureNote } : {}, x.why ? { why: x.why } : {});
+}
 const data = {
   commands: G.commands.map(c => ({ word: c.word, official: c.official || '', plain: c.plain || '', pattern: c.pattern, status: c.status || '' })),
-  patterns: G.patterns.map(p => ({ id: p.id, group: p.group, order: p.order, freq: p.freq, title: p.title, strategy: p.strategy || '', signature: p.signature || '',
+  patterns: G.patterns.map(p => Object.assign({ id: p.id, group: p.group, order: p.order, freq: p.freq, title: p.title, strategy: p.strategy || '', signature: p.signature || '',
     steps: p.steps || [], pitfalls: p.pitfalls || [], note: p.cambridgeNote || '', commands: p.commands || [],
-    example: p.example ? { source: p.example.source, stem: p.example.stem, marks: p.example.marks, markScheme: p.example.markScheme || [], guidance: p.example.guidance || [], model: p.example.model || '' } : null })),
+    example: exampleOf(p.example) },
+    /* the guide's other examples: the dashboard shows one of them when only it has its figure */
+    (p.moreExamples || []).length ? { examples: p.moreExamples.map(exampleOf) } : {},
+    /* parts of the dashboard's old card the guide says are wrong now (dropFromDashboard: part → why) */
+    p.dropFromDashboard ? { drop: Object.keys(p.dropFromDashboard) } : {})),
   mistakes: G.mistakes.map(m => ({ id: m.id, title: m.title, body: m.body, source: m.source }))
 };
 /* Daniel's copyright block, the same one every file in his reflection project carries */
@@ -72,13 +123,15 @@ const gs = COPYRIGHT_GS + `/**
  * guide into the dashboard's own card shapes). Remove this file and the dashboard falls back to
  * the cards written inside 4_StudentDashboardHTML.gs.
  *
- * Every example is a real Cambridge 0610 question; its mark-scheme lines are as printed.
+ * Every example is a real Cambridge 0610 question; its mark-scheme lines are as printed. A card whose
+ * guide entry has no real example shows none.
  * ─────────────────────────────────────────────────────────────────
  */
 var QS_GUIDE = ${JSON.stringify(data, null, 1)};
 
 /* The dashboard's shapes, built from QS_GUIDE. \`old\` is the dashboard's own data: each card keeps its
-   emoji, star rating, diagram and year tip, and keeps its figure only when its example is unchanged. */
+   emoji and star rating, its diagram, year tip and tip unless the guide drops them, and its figure and
+   grey note only while its example is unchanged. */
 function qsGuideLegacy_(old) {
   old = old || {};
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
@@ -95,29 +148,49 @@ function qsGuideLegacy_(old) {
   var SITE = 'https://nlcsbiology.com/bio-english-lab/#/commands';
   var firstWord = {};
   (QS_GUIDE.commands || []).forEach(function (c) { if (c.pattern && !firstWord[c.pattern]) firstWord[c.pattern] = c.word; });
+  var FIG = /\\b(?:Fig\\.|Table)\\s*\\d+\\.\\d+/g;
+  function figsIn(s) {                         /* "Fig. 1.2", "Table 3.1": each once, in order */
+    var seen = {}, out = [];
+    (String(s || '').match(FIG) || []).forEach(function (f) { f = f.replace(/\\s+/g, ' '); if (!seen[f]) { seen[f] = 1; out.push(f); } });
+    return out;
+  }
+  function plain(s) { return String(s == null ? '' : s).replace(/<[^>]*>/g, ''); }   /* the renderer escapes it */
   function card(p) {
-    var o = oldCards[p.id] || {}, ex = p.example;
+    var o = oldCards[p.id] || {}, ex = p.example, drop = p.drop || [];
+    /* The dashboard has pictures only of its own old examples' figures. When the guide's example cites a
+       figure the dashboard does not have, and the guide keeps that old, figured example as another one,
+       the card shows that one, with its figure. */
+    if (ex && o.ex && o.ex.figRef && key(o.ex.cite) !== key(ex.source) && figsIn(ex.stem).length)
+      (p.examples || []).forEach(function (x) { if (key(x.source) === key(o.ex.cite)) ex = x; });
     var same = ex && o.ex && key(o.ex.cite) === key(ex.source);
-    var ms = '';
+    var figRef = same && o.ex.figRef ? o.ex.figRef : '';
+    var ms = '', said = '';
     if (ex) {
       var lines = ex.markScheme.slice(), prefix = '';
       if (lines.length && /^(any \\w+ from|total of|max \\w+ from)/i.test(lines[0])) prefix = lines.shift().replace(/:?\\s*$/, ': ');
       ms = prefix + lines.map(function (l) { return esc(String(l).replace(/\\s*;\\s*$/, '')); }).join(' <b>;</b> ') +
            (ex.guidance.length ? ' <b>;</b> <i>Guidance: ' + ex.guidance.map(esc).join(' · ') + '</i>' : '');
+      /* a figure or table the card cannot show is said to be in the paper, never cited as if it were here */
+      var figs = figRef ? [] : figsIn(ex.stem);
+      if (figs.length) said = '<span style="display:block;margin-bottom:6px;font-size:11px;font-style:italic;color:#8b949e">' +
+        esc((ex.figureNote ? ex.figureNote + ' ' : '') + figs.join(' and ') + (figs.length > 1 ? ' are' : ' is') + ' in the question paper, not shown here.') + '</span>';
     }
     var out = {
       num: p.id, freq: p.freq || o.freq || 1, em: o.em || EMOJI[p.id] || '📌',
       name: p.title, tag: p.strategy, sig: p.signature,
       app: p.steps.map(esc), watch: p.pitfalls.map(esc), note: p.note,
-      ex: ex ? { cite: ex.source, stem: esc(ex.stem) + (ex.marks ? ' <b>[' + ex.marks + ']</b>' : ''), ms: ms, exemplar: esc(ex.model) }
-              : (o.ex || { cite: '', stem: '', ms: '' }),
-      also: o.also || '',
+      /* no real example in the guide: the card shows none (the dashboard's own MCQ item was invented) */
+      ex: ex ? { cite: ex.source, stem: said + esc(ex.stem) + (ex.marks ? ' <b>[' + ex.marks + ']</b>' : ''), ms: ms, exemplar: esc(ex.model) }
+             : { cite: '', stem: '', ms: '' },
+      /* the grey line under the example: the guide's own reason for this example, or else the dashboard's
+         old line, but only while the example is the one that line was written about */
+      also: ex && ex.why ? ex.why : (same && drop.indexOf('also') < 0 ? plain(o.also) : ''),
       practise: SITE + (firstWord[p.id] ? '/' + encodeURIComponent(String(firstWord[p.id]).toLowerCase()) : '')
     };
-    if (same && o.ex.figRef) out.ex.figRef = o.ex.figRef;
-    if (o.diagram) out.diagram = o.diagram;
-    if (o.yearTip) out.yearTip = o.yearTip;
-    if (o.seeAlso) out.seeAlso = o.seeAlso;
+    if (figRef) out.ex.figRef = figRef;
+    if (o.diagram && drop.indexOf('diagram') < 0) out.diagram = o.diagram;
+    if (o.yearTip && drop.indexOf('yearTip') < 0) out.yearTip = o.yearTip;
+    if (o.seeAlso && drop.indexOf('seeAlso') < 0) out.seeAlso = o.seeAlso;
     return out;
   }
   function byOrder(a, b) { return (a.order || 0) - (b.order || 0); }

@@ -1,7 +1,8 @@
 /* ============================================================
    signin.js — one Google sign-in for every page on the site.
-   SHARED: labs-shared/signin.js is the source. Each lab's tools/build.mjs and each hub's
-   tools/stamp.mjs copy it in as js/signin.js, so never edit a copy.
+   SHARED: labs-shared/signin.js is the source. Each engine lab's tools/build.mjs, the Bio
+   English build, and the two front-door editions' tools/stamp.mjs copy it in as js/signin.js,
+   so never edit a copy.
 
    Every hub and lab is served from one origin, nlcsbiology.com, so they share one
    localStorage — and so one sign-in can serve them all. Sign in on the Biology Hub and every
@@ -33,7 +34,8 @@
   var MARGIN = 60 * 1000;               /* a token with less than a minute left is treated as spent */
 
   /* Where sign-ins were kept before this file. Ours are folded in once and then removed; the
-     Veterinary Society page keeps its own and is only ever read, never tidied away. */
+     Veterinary Society page keeps its own, which is read here and never removed when folding
+     in (that page still uses it). Signing out (out()) clears it too, so sign-out is site-wide. */
   var OURS = /^(biology-hub|[a-z0-9-]+-lab)\.signin$/;
   var THEIRS = ['vetsoc.signin'];
 

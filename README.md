@@ -4,7 +4,7 @@
 
 **Write less. Score more. — the sentences that earn marks in Cambridge IGCSE Biology 0610**
 
-[![Open Bio English Lab](https://img.shields.io/badge/▶_Open_Answer_Lab-0A141C?style=for-the-badge)](https://nlcsbiology.com/bio-english-lab/)
+[![Open Bio English Lab](https://img.shields.io/badge/▶_Open_Bio_English_Lab-0A141C?style=for-the-badge)](https://nlcsbiology.com/bio-english-lab/)
 
 ![describe](https://img.shields.io/badge/describe-0B5F7A) ![explain](https://img.shields.io/badge/explain-14572B) ![plan](https://img.shields.io/badge/plan_an_investigation-8A5306) ![keywords](https://img.shields.io/badge/keywords-5E3592) ![marks itself](https://img.shields.io/badge/marks_itself-1E7A3E) ![no sign-up](https://img.shields.io/badge/no_sign--up-66707A)
 
@@ -25,7 +25,7 @@ topic by topic, with the keywords every answer needs.
 | | |
 |---|---|
 | **Learn the method** | Three short lessons: how a describe, an explain and a plan answer are built, and the words examiners do not credit. |
-| **Practise by topic** | Year 9, 10 and 11, organised as NLCS teaches them. Every topic has keyword sets and describe, explain and plan sets. |
+| **Practise by topic** | Year 9, 10 and 11, organised as NLCS teaches them. Every topic has keyword, describe and explain sets, and most have a plan set too. |
 | **Answer without free writing** | Choose the answer that scores, choose the right words, build the sentence from pieces, fix weak words, cut the words that score nothing, put a chain in order, type the keyword, mark an answer as the examiner would, then answer a real exam question step by step: think, order, write. |
 | **See the model answer** | One line, one mark, with the keyword, the direction, the comparison, the data and the link each in their own colour. |
 

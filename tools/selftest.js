@@ -2,8 +2,9 @@
    tools/selftest.js — the marking gate for this site, run in a real browser.
 
    Every question in every set is drawn, answered RIGHT, and must say "correct"; drawn again,
-   answered WRONG, and must NOT say "correct". Nothing here is shipped: _selftest.html (which
-   the .gitignore keeps out of the repo) loads the site's own scripts and then this file.
+   answered WRONG, and must NOT say "correct". The site never loads this file (it is public in
+   the repo, like all of tools/): _selftest.html, which the .gitignore keeps out of the repo,
+   loads the site's own scripts and then this file.
 
      python3 -m http.server 8799 --bind 127.0.0.1   (from the Biology Hub folder)
      open http://127.0.0.1:8799/labs/bio-english-lab/_selftest.html

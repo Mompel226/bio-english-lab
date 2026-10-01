@@ -10,11 +10,15 @@
            ../bio-english-lab-source/topics/*.master.js   the sets for each topic
            ../bio-english-lab-source/keywords.master.js   the one keyword list (shared with the
                                                      reflection system's flashcards)
+           ../bio-english-lab-source/guide.master.json    the command-word guide
+           ../bio-english-lab-source/syllabus-tags.json, past-keywords.json   the syllabus tags
+           ../../labs-shared/syllabus.json, syllabus-versions.json, syllabus-past.json, signin.js
    Writes  js/data/content.js    the sets, each scrambled, plus the plain list the pages draw
            data/sets.json        the public list of sets (ids, names, counts — NO answers);
                                  the Apps Script reads it to offer sets as homework
            js/signin.js          copied from labs-shared/ (the one sign-in for the site)
            version.txt, and the ?v= stamps in index.html
+           (with --out <folder>: only <folder>/content.js, a staging copy, and nothing else)
 
    The masters are never published (see .gitignore): the page ships only the scrambled copy.
    Scrambled is not encrypted — it stops the answers being read by viewing the page, the way a

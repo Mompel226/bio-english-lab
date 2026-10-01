@@ -7,6 +7,10 @@
      #/u/t7        one topic: its Keywords, Describe, Explain and Plan sets
      #/s/<set>     one set, question by question (#/s/<set>/4 opens question 4)
      #/hw/<id>     one piece of homework, for a signed-in student
+     #/w/<unit>    a topic's keyword list
+     #/review      what is due again
+     #/commands[/<word>]  the command-word guide (the reflection's 6_QuestionGuide.gs links
+                   here — do not rename it)
 
    Progress lives in this browser under bio-english-lab.v1, keyed by each question's own
    fingerprint, so changing a question's wording resets that one question and nothing else.
@@ -80,6 +84,19 @@
     /* firstTried: questions answered in the first round; here: questions touched in this round */
     return { done: done, first: first, firstTried: firstTried, here: here, total: (m.keys || []).length, go: R.go };
   }
+  /* Homework (Daniel, 29 Sep 2026): a set given as homework is marked in the lists the way the labs mark their homework
+     stations — red not started, orange part done, green done — by the teacher's rule (the labs script's _hwScoreOne_:
+     done when every question has been answered). '' when the set is not homework, or nobody is signed in. */
+  var HW_WORDS = { none: 'not started', partly: 'part done', done: 'done' };
+  function hwStateOf(sid) {
+    var on = !!(server && server.homework && server.homework.some(function (hw) { return (hw.sets || []).indexOf(sid) >= 0; }));
+    if (!on) return '';
+    var t = tallyBest(sid);
+    return (t.total && t.done >= t.total) ? 'done' : (t.done > 0 ? 'partly' : 'none');
+  }
+  function hwPill(st) { return st ? '<span class="hwpill hwpill--' + st + '">Homework: ' + HW_WORDS[st] + '</span>' : ''; }
+  var HW_KEY = '<p class="hw__key">Your homework sets are marked: <span class="hwdot hwdot--none"></span> red, not started; ' +
+    '<span class="hwdot hwdot--partly"></span> orange, part done; <span class="hwdot hwdot--done"></span> green, done.</p>';
   /* Start again: only a set with something answered on this go moves on */
   function newGo(sid) {
     var r = P.sets[sid], m = META.sets[sid]; if (!r || !m) return false;
@@ -313,20 +330,21 @@
     var FR = (META.frames || {})[uid] || [];
     if (W && W.length) { var wl = h('p', 'sec__p', '<a class="wordslink" href="#/w/' + uid + '">All ' + W.length + ' keywords of this topic, with their definitions' +
       (FR.length ? ', and its ' + FR.length + ' sentence frames' : '') + ' →</a>'); w.appendChild(wl); }
-    var kinds = h('div', 'kinds');
+    var kinds = h('div', 'kinds'), anyHw = false;
     ['kw', 'describe', 'explain', 'plan'].forEach(function (k) {
       var ids = u.sets.filter(function (s) { return META.sets[s] && META.sets[s].kind === k; });
       if (!ids.length) return;
       var sec = h('section', 'kind kind--' + k);   /* one colour per kind, the same on every topic */
       sec.innerHTML = '<div class="kind__h"><h2>' + KIND_NAME[k] + '</h2></div><p class="kind__p">' + KIND_BLURB[k] + '</p>';
       ids.forEach(function (sid) {
-        var m = META.sets[sid], t = tallyBest(sid), now = t.go > 1 ? tally(sid) : null;
-        var a = h('a', 'set'); a.href = '#/s/' + sid;
+        var m = META.sets[sid], t = tallyBest(sid), now = t.go > 1 ? tally(sid) : null, hws = hwStateOf(sid);
+        if (hws) anyHw = true;
+        var a = h('a', 'set' + (hws ? ' set--hw set--hw-' + hws : '')); a.href = '#/s/' + sid;
         /* two rows: what the set is; then how big it is and how far you are */
         var mo = m.modes && (m.modes.data || m.modes.theory) ? (m.modes.theory ? ' · ' + m.modes.theory + ' from theory' : '') + (m.modes.data ? ' · ' + m.modes.data + ' from data' : '') : '';
         a.innerHTML = '<span class="set__main"><span class="set__t">' + T.esc(m.title) + '</span>' +
           (m.blurb ? '<span class="set__s">' + T.esc(m.blurb) + '</span>' : '') +
-          '<span class="set__meta"><span class="set__n">' + t.total + ' questions' + mo + '</span>' +
+          '<span class="set__meta">' + hwPill(hws) + '<span class="set__n">' + t.total + ' questions' + mo + '</span>' +
           '<span class="set__bar"><span class="pbar"><i style="width:' + pct(t.done, t.total) + '%"></i></span><span class="set__pct">' + (t.done ? t.done + ' of ' + t.total + ' · ' + pct(t.done, t.total) + '%' : 'not started') + (now ? ' · round ' + t.go + ': ' + now.done + ' of ' + now.total : '') + '</span></span></span></span>' +
           '<span class="set__go">' + (t.done ? (t.done >= t.total ? 'Again' : 'Carry on') : 'Start') + ' →</span>';
         sec.appendChild(a);
@@ -334,6 +352,7 @@
       kinds.appendChild(sec);
     });
     if (!u.sets.length) kinds.appendChild(h('p', 'sec__p', 'The questions for this topic are being written.'));
+    if (anyHw) { var hk = h('div', ''); hk.innerHTML = HW_KEY; w.appendChild(hk.firstChild); }
     w.appendChild(kinds);
     main.appendChild(w);
   }
@@ -342,7 +361,7 @@
      REVIEW — what you got wrong comes back: after a day, then after a week.
      A question answered right first time never comes back. One answered wrong, or whose answer
      was shown, is due again a day later; right then, a week later; right again, it is done.
-     Wrong at a review sends it back to the start. (Spacing and retrieval: see docs/CONTENT.md.)
+     Wrong at a review sends it back to the start. (Why: ../bio-english-lab-source/research/pedagogy.md §3.)
      ============================================================ */
   var DAY = 864e5;
   function dueList(max) {
@@ -662,7 +681,11 @@
       card.innerHTML = '<span>Signed in as <b>' + T.esc((me.name || me.email).split(' ')[0]) + '</b></span><span class="who__sync" id="syncState">' + T.esc(syncText()) + '</span>' +
         (server && server.teacher && server.teacherPage ? '<a class="who__t" href="' + T.esc(server.teacherPage) + '" target="_blank" rel="noopener">Teacher page</a>' : '');
       var out = h('button', 'who__out', 'Sign out'); out.type = 'button';
-      out.addEventListener('click', function () { SI.out(); });
+      out.addEventListener('click', function () {
+        /* send what is still waiting while this account's sign-in works: once signed out, it cannot be sent */
+        if (Object.keys(pending).length && SI.live()) flush();
+        SI.out();
+      });
       card.appendChild(out);
     } else {
       card.hidden = true; btn.hidden = false; btn.innerHTML = '';
@@ -679,24 +702,39 @@
      This browser's work belongs to the account it was last saved for. Another account signing in must not
      have it pushed into THEIR record (it is safe in its owner's already), so it leaves this browser first.
      Work done signed out, before anybody signed in here, has no owner yet and goes to the first account
-     that signs in. "Clear this computer" (the front page, signed out) empties the browser by hand. */
-  var OWNER_KEY = 'bio-english-lab.owner';
+     that signs in. "Clear this computer" (the front page, signed out) empties the browser by hand.
+     It is safe in its owner's record only if every answer reached it: UNSENT_KEY says whether some has not
+     (every answer sets it; a save the records took, with nothing left waiting, clears it), so the message
+     the next account sees is true either way (30 Sep 2026). */
+  var OWNER_KEY = 'bio-english-lab.owner', UNSENT_KEY = 'bio-english-lab.unsent';
+  function markUnsent(on) { try { if (on) localStorage.setItem(UNSENT_KEY, '1'); else localStorage.removeItem(UNSENT_KEY); } catch (e) {} }
+  function unsentHere() { try { return !!localStorage.getItem(UNSENT_KEY); } catch (e) { return true; } }
   function hasWork() { return Object.keys(P.sets).some(function (sid) { var r = P.sets[sid]; return r && ((r.items && Object.keys(r.items).length) || goOf(r) > 1); }); }
-  function clearHere() { P = { sets: {}, year: P.year }; save(); pending = {}; }
+  function clearHere() { P = { sets: {}, year: P.year }; save(); pending = {}; markUnsent(false); }
   function claimFor(email) {
     var was = '';
     try { was = localStorage.getItem(OWNER_KEY) || ''; } catch (e) {}
     if (was && email && was !== email && hasWork()) {
+      var unsent = unsentHere() || Object.keys(pending).length > 0;
       clearHere();
-      toast('This computer had another student\u2019s work. It stays in their record; it was not added to yours.');
+      toast(unsent ? 'This computer had another student\u2019s work, and some of it may not have been saved to their record. It has been removed from this computer, and none of it was added to yours.'
+                   : 'This computer had another student\u2019s work. It stays in their record; it was not added to yours.');
     }
     try { if (email) localStorage.setItem(OWNER_KEY, email); } catch (e) {}
   }
-  if (SI) SI.on(function (v) { var was = me && me.email; me = v; paintWho(); if (v && v.email !== was) { server = null; record = null; claimFor(v.email); fetchMine(); fetchRecord(); } if (!v) { server = null; record = null; route(); } });
+  if (SI) SI.on(function (v) { var was = me && me.email; me = v; paintWho(); if (v && v.email !== was) { server = null; record = null; notListedSaid = false; claimFor(v.email); fetchMine(); fetchRecord(); } if (!v) { server = null; record = null; route(); } });
 
   /* ---------- the student's own dashboard (the reflection system's record page) ----------
      Asked, never assumed: the labs' script says whether this student has reflected yet. */
   var REC = CFG.record || null, record = null;   /* null = not asked; {has:false} = nothing yet */
+  /* Where My assessments lives now (reflection spec §40.78): each assessment has its own reflection copy, and the
+     labs script hands over the newest copy's address with the record answer as `myAssessments`, as it does to the
+     Biology Hub. Only an Apps Script student page is followed (the same test as the hub's js/hub.js newest());
+     anything else, or no answer, keeps REC.url. */
+  function newest(u) {
+    u = String(u || '');
+    return /^https:\/\/script\.google\.com\/(?:a\/macros\/[a-z0-9.-]+\/|macros\/)s\/[A-Za-z0-9_-]{20,}\/exec\?page=student$/.test(u) ? u : '';
+  }
   function fetchRecord() {
     if (!REC || !REC.askUrl || !me || !SI) return;
     var live = SI.live();
@@ -709,21 +747,22 @@
         else {
           var reflected = Number(j.reflected != null ? j.reflected : j.count) || 0, unfinished = (j.unfinishedNames || []).length || Number(j.incomplete) || 0;
           record = { has: reflected + unfinished > 0, reflected: reflected, assessments: Number(j.assessments) || reflected, teacher: !!j.teacher,
-                     practice: !!j.practice };
+                     practice: !!j.practice, url: newest(j.myAssessments) };
         }
         paintRecord();
       }).catch(function () {});
   }
   function recordLine() {
     if (!REC || !me || !record) return '';
+    var url = record.url || REC.url;
     if (record.why === 'not a school account') return 'Your dashboard needs your …' + T.esc(REC.domain || 'school') + ' account.';
     /* practice (the labs, and this site) shows on the dashboard before any reflection (Sept 2026) */
-    if (!record.has && record.practice) return 'Your practice so far is on <a href="' + T.esc(REC.url) + '" target="_blank" rel="noopener">your dashboard</a>. After your first assessment reflection, it also shows which command words cost you marks.';
+    if (!record.has && record.practice) return 'Your practice so far is on <a href="' + T.esc(url) + '" target="_blank" rel="noopener">your dashboard</a>. After your first assessment reflection, it also shows which command words cost you marks.';
     if (!record.has) return 'You do not have a dashboard yet: it appears after your first assessment reflection. Until then, start with the three methods below.';
     /* straight to the Commands tab, which is the one that says which command words cost marks */
     return 'Your dashboard shows which command words cost you the most marks' +
       (record.assessments ? ' (' + record.reflected + ' of ' + record.assessments + ' assessments reflected)' : '') +
-      '. <a href="' + T.esc(REC.url + (REC.url.indexOf('?') >= 0 ? '&' : '?') + 'tab=commands') + '" target="_blank" rel="noopener">Open its Commands tab</a>, then practise those here first.';
+      '. <a href="' + T.esc(url + (url.indexOf('?') >= 0 ? '&' : '?') + 'tab=commands') + '" target="_blank" rel="noopener">Open its Commands tab</a>, then practise those here first.';
   }
   function paintRecord() {
     var el = document.getElementById('recLine');
@@ -759,15 +798,22 @@
      a set finished, a sign-in, the page being left). Forty pupils on one script is comfortable
      at that pace; a save the records could not take goes again a minute later. */
   var SAVE_AFTER = 120000;
+  /* the records said this account is not on a class list: nothing is sent until the next sign-in asks again
+     (fetchMine), and it is said once — it used to be tried, and a message shown, every minute */
+  var notListedSaid = false, answeredGen = 0;
+  function notListed() { return !!(server && server.onList === false); }
   function queueSync(sid, now) {
-    if (!syncOn() || !me) return;
+    answeredGen++; markUnsent(true);           /* until a save the records take: see flush */
+    if (!syncOn() || !me || notListed()) return;
     pending[sid] = true;
     if (now) { clearTimeout(syncTimer); syncTimer = null; flush(); return; }
     if (!syncTimer) syncTimer = setTimeout(function () { syncTimer = null; flush(); }, SAVE_AFTER);
   }
   function flush(leaving) {
     var ids = Object.keys(pending); if (!ids.length) return;
-    var live = SI.live();
+    /* signed out: it waits for this browser's owner to sign in again (a new sign-in is never asked for here) */
+    if (!me || notListed()) return;
+    var live = SI.live(), gen = answeredGen;
     if (!live) { SI.renew(CID, function (v) { if (v) flush(); }); return; }
     pending = {};
     setSync('saving');
@@ -779,7 +825,15 @@
                     go: R.go, snap1: lettersOf(sid, R.first), best: lettersOf(sid, R.best) };
     });
     post({ action: 'english.save', token: live.token, sets: sets, at: new Date().toISOString() }, leaving)
-      .then(function (j) { if (!j || !j.ok) { ids.forEach(function (s) { pending[s] = true; }); setSync('failed'); clearTimeout(syncTimer); syncTimer = setTimeout(function () { syncTimer = null; flush(); }, 60000); if (j && j.why && j.why !== 'not signed in') toast('Your progress was not recorded: ' + j.why); } else setSync('saved'); })
+      .then(function (j) {
+        if (j && !j.ok && /^not on your teacher/.test(String(j.why || ''))) {
+          server = server || {}; server.onList = false; setSync('failed'); paintWho();
+          if (!notListedSaid) { notListedSaid = true; toast('Your progress was not recorded: ' + j.why); }
+          return;
+        }
+        if (!j || !j.ok) { ids.forEach(function (s) { pending[s] = true; }); setSync('failed'); clearTimeout(syncTimer); syncTimer = setTimeout(function () { syncTimer = null; flush(); }, 60000); if (j && j.why && j.why !== 'not signed in') toast('Your progress was not recorded: ' + j.why); }
+        else { setSync('saved'); if (!Object.keys(pending).length && gen === answeredGen) markUnsent(false); }
+      })
       .catch(function () { ids.forEach(function (s) { pending[s] = true; }); setSync('failed'); });
   }
   addEventListener('pagehide', function () { if (Object.keys(pending).length) flush(true); });
@@ -855,12 +909,13 @@
     if (!me) { w.appendChild(h('p', 'sec__p', 'Sign in with your school Google account (top right) to see this homework.')); main.appendChild(w); return; }
     if (!hw) { w.appendChild(h('p', 'sec__p', server ? 'This homework was not found for your account.' : 'Loading your homework…')); main.appendChild(w); return; }
     w.appendChild(h('header', 'uhead', '<p class="eyebrow">Homework · due ' + T.esc(hw.due || '') + '</p><h1 class="uhead__t">' + T.esc(hw.title) + '</h1>'));
+    var key = h('div', ''); key.innerHTML = HW_KEY; w.appendChild(key.firstChild);
     var sec = h('section', 'kind');
     (hw.sets || []).forEach(function (sid) {
       var m = META.sets[sid]; if (!m) return;
-      var t = tallyBest(sid), u = META.units[m.unit];
-      var a = h('a', 'set'); a.href = '#/s/' + sid;
-      a.innerHTML = '<span><span class="set__t">' + (u ? 'Topic ' + T.esc(u.n) + ' · ' : '') + T.esc(m.title) + '</span><br><span class="set__s">' + t.total + ' questions</span><span class="pbar"><i style="width:' + pct(t.done, t.total) + '%"></i></span></span><span class="set__go">' + (t.done >= t.total ? 'Done' : t.done ? 'Carry on' : 'Start') + ' →</span>';
+      var t = tallyBest(sid), u = META.units[m.unit], hws = hwStateOf(sid);
+      var a = h('a', 'set' + (hws ? ' set--hw set--hw-' + hws : '')); a.href = '#/s/' + sid;
+      a.innerHTML = '<span><span class="set__t">' + (u ? 'Topic ' + T.esc(u.n) + ' · ' : '') + T.esc(m.title) + '</span><br>' + hwPill(hws) + ' <span class="set__s">' + t.total + ' questions</span><span class="pbar"><i style="width:' + pct(t.done, t.total) + '%"></i></span></span><span class="set__go">' + (t.done >= t.total ? 'Done' : t.done ? 'Carry on' : 'Start') + ' →</span>';
       sec.appendChild(a);
     });
     w.appendChild(sec); main.appendChild(w);
