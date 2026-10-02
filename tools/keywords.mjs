@@ -12,13 +12,17 @@
      node tools/keywords.mjs gs          write Code/5_IgcseBiologyKeywords.gs in the REAL reflection folder, by
                                          absolute path (…/AppScript REFLECTION System/Code/; out/reflection/ only
                                          on a machine without it). Run from a copy of this repository, it still
-                                         writes the real file. Then raise REFLECTION_BUILD in Code/Code.gs.
-     node tools/keywords.mjs check <path to a pasted .gs>                  is that copy the same as the master?
+                                         writes the real file, and remakes the reflection's Paste/ folder (the lean
+                                         copy Daniel pastes from; the keyword list is in its LeanKeywords.html).
+                                         Then raise REFLECTION_BUILD in Code/Code.gs and run lean_paste.cjs again.
+     node tools/keywords.mjs check <path to a FULL 5_….gs>                 is that copy the same as the master? (the
+                                         lean copy in Paste/ keeps the list in LeanKeywords.html: check Code/'s file)
      node tools/keywords.mjs patch <review.json>…                          apply reviewed edits to the master:
                                          a change lands only while the field still holds its `old` value
    ============================================================ */
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -33,8 +37,24 @@ const REFLECT = [
 ].filter(d => fs.existsSync(d));
 /* not on this machine? fall back to a working copy, so the tool still runs */
 const FALLBACK = path.join(SRC, 'out', 'reflection');
+/* Daniel PASTES the reflection from its Paste/ folder, a lean copy MADE from Code/ (reflection spec §40.108, 2 Oct 2026:
+   Apps Script loads every byte of every .gs at the start of every call). A file written into Code/ therefore needs
+   that copy made again. This does it when the tool ends, and says what he pastes. */
+let wroteReflection = false;
+process.on('exit', (code) => {
+  if (code !== 0 || !wroteReflection || !REFLECT.length || process.env.NO_LEAN_PASTE) return;
+  const tool = path.join(REFLECT[0], '..', '..', 'Test System harness', 'lean_paste.cjs');
+  if (!fs.existsSync(tool)) { console.log('! Daniel pastes the reflection from its Paste/ folder: run lean_paste.cjs (IGCSE/AppScript/Test System harness) to remake it.'); return; }
+  const r = spawnSync(process.execPath, [tool], { encoding: 'utf8' });
+  const last = String((r.stdout || '') + (r.stderr || '')).trim().split('\n').pop();
+  if (r.status !== 0) { console.log('✗ Paste/ was NOT remade — ' + last + '\n  Daniel must not paste the reflection until `node lean_paste.cjs` runs clean.'); return; }
+  console.log('✓ Paste/ remade from Code/ (' + last.replace(/^written to .*\(/, '').replace(/\)$/, '') + ').\n' +
+    '  Next: raise REFLECTION_BUILD in Code/Code.gs, run lean_paste.cjs once more, then Daniel pastes FROM\n' +
+    '  AppScript REFLECTION System/Paste/: LeanKeywords.html (the keyword list lives there in the lean copy) and 5_IgcseBiologyKeywords.gs;\n  then 📚 "Build / refresh IGCSE Keywords tab".');
+});
 function writeReflection(name, text) {
   const dirs = REFLECT.length ? REFLECT : [FALLBACK];
+  if (REFLECT.length) wroteReflection = true;
   dirs.forEach(d => { fs.mkdirSync(d, { recursive: true }); fs.writeFileSync(path.join(d, name), text); console.log('✓ ' + path.join(d, name)); });
 }
 
@@ -97,7 +117,7 @@ if (cmd === 'import') {
     const byId = Object.fromEntries(other.K.map(k => [k.id, k]));
     let diff = 0;
     m.KEYWORDS.forEach(k => { if (JSON.stringify(ordered(k)) !== JSON.stringify(byId[k.id] ? ordered(byId[k.id]) : null)) diff++; });
-    console.log('✗ ' + diff + ' keyword(s) differ from the master: run `node tools/keywords.mjs gs`, then paste 5_IgcseBiologyKeywords.gs');
+    console.log('✗ ' + diff + ' keyword(s) differ from the master: run `node tools/keywords.mjs gs` (it remakes the reflection\'s Paste/ folder), then paste LeanKeywords.html and 5_IgcseBiologyKeywords.gs from Paste/');
     process.exit(1);
   }
 } else if (cmd === 'patch') {

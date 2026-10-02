@@ -37,6 +37,7 @@
    ============================================================ */
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -48,7 +49,23 @@ const REFLECT = [
   '/Users/NLCS/Library/CloudStorage/OneDrive-Personal/NLCS/IGCSE/AppScript/AppScript REFLECTION System/Code'
 ].filter(d => fs.existsSync(d));
 const OUT = REFLECT.length ? REFLECT : [path.join(SRC, 'out', 'reflection')];
+/* Daniel PASTES the reflection from its Paste/ folder, a lean copy MADE from Code/ (reflection spec §40.108, 2 Oct 2026:
+   Apps Script loads every byte of every .gs at the start of every call). A file written into Code/ therefore needs
+   that copy made again. This does it when the tool ends, and says what he pastes. */
+let wroteReflection = false;
+process.on('exit', (code) => {
+  if (code !== 0 || !wroteReflection || !REFLECT.length || process.env.NO_LEAN_PASTE) return;
+  const tool = path.join(REFLECT[0], '..', '..', 'Test System harness', 'lean_paste.cjs');
+  if (!fs.existsSync(tool)) { console.log('! Daniel pastes the reflection from its Paste/ folder: run lean_paste.cjs (IGCSE/AppScript/Test System harness) to remake it.'); return; }
+  const r = spawnSync(process.execPath, [tool], { encoding: 'utf8' });
+  const last = String((r.stdout || '') + (r.stderr || '')).trim().split('\n').pop();
+  if (r.status !== 0) { console.log('✗ Paste/ was NOT remade — ' + last + '\n  Daniel must not paste the reflection until `node lean_paste.cjs` runs clean.'); return; }
+  console.log('✓ Paste/ remade from Code/ (' + last.replace(/^written to .*\(/, '').replace(/\)$/, '') + ').\n' +
+    '  Next: raise REFLECTION_BUILD in Code/Code.gs, run lean_paste.cjs once more, then Daniel pastes FROM\n' +
+    '  AppScript REFLECTION System/Paste/: 6_QuestionGuide.gs, and 4_StudentDashboardHTML.gs if this run wrote it.');
+});
 function writeReflection(name, text) {
+  if (REFLECT.length) wroteReflection = true;
   OUT.forEach(d => { fs.mkdirSync(d, { recursive: true }); fs.writeFileSync(path.join(d, name), text); console.log('✓ written: ' + path.join(d, name)); });
 }
 const G = JSON.parse(fs.readFileSync(path.join(SRC, 'guide.master.json'), 'utf8'));
