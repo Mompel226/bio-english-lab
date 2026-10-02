@@ -11,6 +11,7 @@
            ../bio-english-lab-source/keywords.master.js   the one keyword list (shared with the
                                                      reflection system's flashcards)
            ../bio-english-lab-source/guide.master.json    the command-word guide
+           ../bio-english-lab-source/wordparts.master.js  the word parts (etymology): one more keyword set per topic
            ../bio-english-lab-source/syllabus-tags.json, past-keywords.json   the syllabus tags
            ../../labs-shared/syllabus.json, syllabus-versions.json, syllabus-past.json, signin.js
    Writes  js/data/content.js    the sets, each scrambled, plus the plain list the pages draw
@@ -182,6 +183,8 @@ const SYL_TAGS = (() => { try { return JSON.parse(fs.readFileSync(path.join(SRC,
 /* `h`: the item's fingerprint now. A tag given to the item as it was before a rewording is not used: the reworded
    question may test something else (tools/syllabus-tags.mjs check names it) */
 function sylOf(id, h) {
+  /* an etymology question (kwr.<keyword>.…) is about that keyword's word: it carries that keyword's statements */
+  if (String(id).startsWith('kwr.')) { const k = (SYL_TAGS.keywords || {})[String(id).split('.')[1]]; return k && Array.isArray(k.syl) ? k.syl.slice(0, 3) : []; }
   const x = String(id).startsWith('kwm.') ? (SYL_TAGS.keywords || {})[String(id).slice(4)] : (SYL_TAGS.items || {})[id];
   if (x && h && x.h && x.h !== h) return [];
   return x && Array.isArray(x.syl) ? x.syl.slice(0, 3) : [];
@@ -311,6 +314,305 @@ for (const [uid, list] of Object.entries(kwByUnit)) {
       blurb: 'Every keyword of the topic, from its definition' + (parts > 1 ? ' (part ' + (p + 1) + ' of ' + parts + ')' : ''), items };
   }
 }
+/* ---------- etymology: the Greek and Latin parts the keywords are built from (2 Oct 2026) ----------
+   ../bio-english-lab-source/wordparts.master.js is the ONE list of word parts (cardi- = heart, -cyte = cell), each
+   checked in a dictionary and carrying its source: PARTS, KW (which parts each keyword is built from, and where a
+   word comes from) and MEET (words outside the keyword list that a student can work out from the parts).
+   From it the build makes, for every topic, one set "Keywords: etymology" (<unit>.kw.roots, kind kw, so the labs
+   script's homework needs nothing new) with three kinds of question, all a choice of four:
+     · a part → what it means                      kwr.<keyword>.<part>
+     · a keyword taken apart → its parts, in order  kwr.<keyword>.split
+     · a word never taught → what it must mean      kwr.<keyword>.w.<word>
+   The <keyword> in each id is a keyword of that topic built from the same part: the question borrows that keyword's
+   syllabus tag (sylOf below, and englishTagOf in the estate's tools/syllabus-tags.mjs).
+   A part is asked in ONE topic, the one with most keywords built from it (the earlier topic on a tie); a topic with
+   few parts of its own also asks its commonest ones. The wrong choices are picked the same way every build, so a
+   question's fingerprint changes only when its words do.
+   What the pages draw (the topic's keyword list, the line under an answered keyword, the #/roots page) goes into
+   meta.roots, beside the questions and never inside them: no keyword question's fingerprint changes, so nothing
+   a student has answered restarts. */
+const ROOTS_FILE = path.join(SRC, 'wordparts.master.js');
+const RT = fs.existsSync(ROOTS_FILE) ? await load(ROOTS_FILE) : null;
+const ROOTS_PART_MAX = 14, ROOTS_PART_MIN = 5, ROOTS_END_MAX = 2, ROOTS_SPLIT_MAX = 5, ROOTS_MEET_MAX = 6, ROOTS_SET_MIN = 4;
+function buildRoots() {
+  const PARTS = RT.PARTS || [], KWR = RT.KW || {}, MEET = RT.MEET || [], GROUPS = RT.GROUPS || [];
+  const P = {};
+  const plainText = (where, s) => { if (/[{}<>]/.test(String(s || ''))) bad(where, 'a brace or an angle bracket in its words: ' + String(s).slice(0, 60)); };
+  PARTS.forEach(p => {
+    const where = 'wordparts ' + (p.id || p.part);
+    if (!p.id || P[p.id]) { bad(where, 'a part with no id, or its id twice'); return; }
+    P[p.id] = p;
+    ['part', 'means', 'origin', 'src', 'group'].forEach(f => { if (!p[f]) bad(where, 'no ' + f + ' (every part gives its meaning, its origin and the dictionary it was checked in)'); });
+    if (!GROUPS.includes(p.group)) bad(where, 'group "' + p.group + '" is not in GROUPS');
+    ['part', 'means', 'short', 'origin', 'src', 'ko'].forEach(f => plainText(where, p[f]));
+  });
+  const kwById = Object.fromEntries(KEYWORDS.map(k => [k.id, k]));
+  const unitOrder = YEARS.flatMap(Y => Y.units);
+  const unitOfId = {};
+  Object.entries(kwByUnit).forEach(([u, l]) => l.forEach(k => { unitOfId[k.id] = u; }));
+  for (const [id, x] of Object.entries(KWR)) {
+    const where = 'wordparts KW ' + id;
+    if (!kwById[id]) { bad(where, 'no such keyword'); continue; }
+    (x.parts || []).concat(x.pro || []).forEach(pid => { if (!P[pid]) bad(where, 'unknown part ' + pid); });
+    if ((x.pro || []).length && !kwById[id].pro_en) bad(where, 'pro parts, but the keyword has no professional term');
+    if (x.nosplit != null && x.nosplit !== true) bad(where, 'nosplit is true or absent');
+    if (!(x.parts || []).length && !(x.pro || []).length && !x.origin) bad(where, 'neither parts nor an origin');
+    if ((x.parts || []).length || (x.pro || []).length || x.origin) { if (!x.src) bad(where, 'no src'); }
+    ['lit', 'origin', 'src'].forEach(f => plainText(where, x[f]));
+  }
+  /* a keyword the site shows (and its professional term) is not a word to meet; an IB keyword, which no topic shows, may be */
+  const kwNames = new Set(KEYWORDS.filter(k => unitOfKeyword(k)).flatMap(k => names(k.en).all.concat(k.pro_en ? names(k.pro_en).all : [])));
+  const meetSeen = new Set();
+  MEET.forEach(m => {
+    const where = 'wordparts MEET ' + m.w;
+    if (!m.w || !m.means || !m.src) bad(where, 'a word to meet needs w, means and src');
+    if (!UNITS[m.unit]) bad(where, 'unit ' + m.unit + ' is not in units.master.js');
+    if (!(m.parts || []).length) bad(where, 'no parts');
+    (m.parts || []).forEach(pid => { if (!P[pid]) bad(where, 'unknown part ' + pid); });
+    if (kwNames.has(String(m.w).toLowerCase())) bad(where, 'is a keyword of the list: it belongs in KW, not in MEET');
+    if (meetSeen.has(String(m.w).toLowerCase())) bad(where, 'listed twice');
+    meetSeen.add(String(m.w).toLowerCase());
+    ['w', 'means', 'src'].forEach(f => plainText(where, m[f]));
+  });
+  if (problems.length) return null;
+
+  /* how a part is written inside one word: "-cyte" in erythrocyte, "cyto-" in cytoplasm */
+  const formsOf = p => p.part.replace(/\([^)]*\)/g, '').split(',').map(s => s.trim()).filter(Boolean);
+  const bare = f => f.replace(/[^A-Za-z]/g, '').toLowerCase();
+  const shownIn = (p, word) => {
+    const w = String(word).toLowerCase().replace(/[^a-z]/g, '');
+    return formsOf(p).filter(f => w.includes(bare(f))).sort((a, b) => bare(b).length - bare(a).length)[0] || formsOf(p)[0];
+  };
+  /* the parts of one word, each as it is written there, found from left to right: in "semilunar valve" the ending is
+     -ar (semilun-ar), not the -al that "valve" happens to hold */
+  const shownList = (ids, word) => placed(ids, word).map(x => x.f);
+  const allSeen = (ids, word) => placed(ids, word).every(x => x.i >= 0);
+  const shownOf = (pid, ids, word) => shownList(ids, word)[ids.indexOf(pid)] || shownIn(P[pid], word);
+  const gloss = p => p.short || p.means;
+  const PROPER = /^(Benedict|Bowman|Krebs|Punnett|Visking|Calvin)/;
+  const lc = s => (/^[A-Z][a-z]/.test(s) && !PROPER.test(s)) ? s[0].toLowerCase() + s.slice(1) : s;
+  const letters = s => String(s).toLowerCase().replace(/[^a-z]/g, '');
+  /* where each part of a word is written, read left to right: [{ f: the form, i: its place in the letters }] (i -1: not there) */
+  const placed = (ids, word) => {
+    const w = letters(word);
+    let from = 0;
+    return ids.map(pid => {
+      const hit = formsOf(P[pid]).map(f => ({ f, i: w.indexOf(bare(f), from) })).filter(x => x.i >= 0).sort((a, b) => a.i - b.i || bare(b.f).length - bare(a.f).length)[0];
+      if (!hit) return { f: shownIn(P[pid], word), i: -1 };
+      from = hit.i + bare(hit.f).length;
+      return hit;
+    });
+  };
+  /* a keyword's name as its parts are seen in it: "ECG (electrocardiogram)" → electrocardiogram for cardi-;
+     "Filtration in the glomerulus (ultrafiltration)" → ultrafiltration for ultra-. The main name wins a tie. */
+  const wordOf = (k, ids) => {
+    const N = names(k.en), all = [N.main].concat(N.also).map(v => lc(v).replace(/\s*\([^)]*\)/g, ''));      /* "Ethanol (emulsion) test" → ethanol test */
+    if (!ids || !ids.length || all.length < 2) return all[0];
+    return all.map((v, i) => ({ v, i, n: placed(ids, v).filter(x => x.i >= 0).length })).sort((a, b) => b.n - a.n || a.i - b.i)[0].v;
+  };
+  /* only the words of a name that hold a part: "partially permeable membrane" → "permeable", "semilunar valve" → "semilunar" */
+  const heldWords = (ids, word) => {
+    const toks = String(word).split(/[\s\u2013-]+/).filter(Boolean);
+    let n = 0;
+    const span = toks.map(t => { const a = n; n += letters(t).length; return [a, n]; });
+    const at = placed(ids, word).filter(x => x.i >= 0).map(x => x.i);
+    const keep = toks.filter((t, j) => at.some(i => i >= span[j][0] && i < span[j][1]));
+    return keep.length ? keep.join(' ') : word;
+  };
+  const covered = (ids, word) => placed(ids, word).reduce((sum, x) => sum + (x.i >= 0 ? bare(x.f).length : 0), 0) / Math.max(1, letters(word).length);
+  const proOf = k => lc(names(k.pro_en || '').main);
+  const sentence = s => { s = String(s || '').trim(); return !s ? '' : /[.?!]$/.test(s) ? s : s + '.'; };
+  /* "Greek hepar, liver" → "From Greek hepar, liver."; an origin that is already a clause ("from glucose", "Cut from…") only gets its capital */
+  const fromLine = p => sentence(/^(Greek|Latin|Old|Medieval|Modern|Late|French|German|Sanskrit)\b/.test(p.origin) ? 'From ' + p.origin : p.origin[0].toUpperCase() + p.origin.slice(1));
+  const same = (a, b) => { a = String(a).toLowerCase(); b = String(b).toLowerCase(); return a === b || a.includes(b) || b.includes(a); };
+  const shuffled = (arr, rnd) => { const a = arr.slice(), out = []; while (a.length) out.push(a.splice(Math.floor(rnd() * a.length), 1)[0]); return out; };
+
+  /* which keywords of each topic are built from each part */
+  const inUnit = {};
+  KEYWORDS.forEach(k => {
+    const u = unitOfId[k.id], x = KWR[k.id];
+    if (!u || !x) return;
+    new Set((x.parts || []).concat(x.pro || [])).forEach(pid => { const U = inUnit[u] = inUnit[u] || {}; (U[pid] = U[pid] || []).push(k.id); });
+  });
+  const total = {};
+  Object.values(inUnit).forEach(U => Object.entries(U).forEach(([pid, l]) => { total[pid] = (total[pid] || 0) + l.length; }));
+  const count = (u, pid) => ((inUnit[u] || {})[pid] || []).length;
+  /* each part's topics, best first: most keywords, then the topic taught first */
+  const ranked = pid => unitOrder.filter(u => count(u, pid)).sort((a, b) => count(b, pid) - count(a, pid) || unitOrder.indexOf(a) - unitOrder.indexOf(b));
+  const asked = {};
+  unitOrder.forEach(u => { asked[u] = []; });
+  /* `plain: true` on a part: its meaning is the word itself (arteri- = artery), so it is listed and never asked.
+     The parts with the fewest topics choose first (cardi- has only topic 9; cyt- has six to choose from), and a
+     topic asks at most ROOTS_END_MAX endings (-tion, -ic), which every topic has. */
+  const at = pid => PARTS.findIndex(p => p.id === pid);
+  const isEnd = pid => P[pid].cls === 'ending';
+  const order = PARTS.map(p => p.id).filter(pid => total[pid] && !P[pid].plain).sort((a, b) => ranked(a).length - ranked(b).length || total[b] - total[a] || at(a) - at(b));
+  const homeless = [];
+  order.forEach(pid => {
+    const u = ranked(pid).find(x => asked[x].length < ROOTS_PART_MAX && (!isEnd(pid) || asked[x].filter(isEnd).length < ROOTS_END_MAX));
+    if (u) asked[u].push(pid); else homeless.push(pid);
+  });
+  unitOrder.forEach(u => {
+    const mine = Object.keys(inUnit[u] || {}).filter(pid => !asked[u].includes(pid) && !P[pid].plain && !isEnd(pid)).sort((a, b) => count(u, b) - count(u, a) || total[b] - total[a] || a.localeCompare(b));
+    while (asked[u].length < ROOTS_PART_MIN && mine.length) asked[u].push(mine.shift());
+    asked[u].sort((a, b) => count(u, b) - count(u, a) || a.localeCompare(b));
+  });
+  if (homeless.length) warn.push('etymology: ' + homeless.length + ' part(s) are asked in no topic (their topics are full): ' + homeless.join(', '));
+
+  /* wrong meanings for a part: the same class first (organs with organs, colours with colours), then its group */
+  const wrongParts = (p, rnd, n, taken) => {
+    const out = [], seen = [gloss(p)].concat(taken || []);
+    const tiers = [PARTS.filter(q => q.cls && q.cls === p.cls), PARTS.filter(q => q.group === p.group), PARTS];
+    for (const tier of tiers) for (const q of shuffled(tier, rnd)) {
+      if (out.length >= n) break;
+      if (q.id === p.id || seen.some(s => same(s, gloss(q)) || same(s, q.means))) continue;
+      out.push(q); seen.push(gloss(q)); seen.push(q.means);
+    }
+    return out;
+  };
+  const exampleOf = (pid, u) => {            /* a word the student knows that has the part: this topic's first */
+    const id = ((inUnit[u] || {})[pid] || [])[0] || (ranked(pid)[0] && inUnit[ranked(pid)[0]][pid][0]);
+    if (!id) { const m = MEET.find(x => x.parts.includes(pid)); return m ? m.w : ''; }
+    const k = kwById[id], x = KWR[id];
+    return (x.parts || []).includes(pid) ? wordOf(k, x.parts) : proOf(k);
+  };
+  const partsLine = (ids, word) => { const sh = shownList(ids, word); return ids.map((pid, i) => sh[i] + ' (' + gloss(P[pid]) + ')').join(' + '); };
+  const meetOf = pid => MEET.filter(m => m.parts.includes(pid));
+
+  const made = {};
+  unitOrder.forEach(uid => {
+    const list = kwByUnit[uid] || [];
+    if (!list.length) return;
+    const items = [], rows = [];
+    /* 1. a part → what it means */
+    asked[uid].forEach(pid => {
+      const size = i => { const y = KWR[i]; return ((y.parts || []).includes(pid) ? y.parts : y.pro).length; };
+      /* the keyword the question leans on: one the syllabus names, if the topic has one (the question carries its tag), then the shortest */
+      const tagged = i => (((SYL_TAGS.keywords || {})[i] || {}).syl || []).length ? 0 : 1;
+      const p = P[pid], anchor = inUnit[uid][pid].slice().sort((a, b) => tagged(a) - tagged(b) || size(a) - size(b))[0], k = kwById[anchor], x = KWR[anchor];
+      const inOwn = (x.parts || []).includes(pid), word = inOwn ? wordOf(k, x.parts) : proOf(k), shown = shownOf(pid, inOwn ? x.parts : x.pro, word);
+      const id = 'kwr.' + anchor + '.' + pid, rnd = seeded(id);
+      const wrong = wrongParts(p, rnd, 3);
+      if (wrong.length < 3) { bad('etymology ' + pid, 'fewer than three other meanings to choose from'); return; }
+      const here = inUnit[uid][pid].map(i => (KWR[i].parts || []).includes(pid) ? wordOf(kwById[i], KWR[i].parts) : proOf(kwById[i]));
+      const meet = meetOf(pid).slice(0, 2);
+      const near = {};
+      wrong.forEach(q => { const ex = exampleOf(q.id, uid); near[q.means] = sentence(shownIn(q, ex) + ' means ' + q.means + (ex ? ', as in ' + ex : '')); });
+      items.push({ id, type: 'kw', input: 'choose', cmd: 'Etymology', task: 'What does this word part mean?',
+        prompt: '{k:' + shown + '}, as in ' + word + (inOwn ? '' : ' (' + wordOf(k) + ')'),
+        key: p.means, full: formsOf(p).join(', ') + ' = ' + p.means, ko: p.ko || '',
+        def: fromLine(p) + (p.note ? ' ' + sentence(p.note) : '') + ' In this topic: ' + here.slice(0, 5).join(', ') + '.' + (meet.length ? ' You may also meet: ' + meet.map(m => m.w + ' (' + m.means + ')').join('; ') + '.' : ''),
+        opts: [p.means].concat(wrong.map(q => q.means)), near, rsrc: p.src, src: 'Word parts list · ' + p.src });
+      rows.push([formsOf(p).join(', '), p.means, here.slice(0, 3).join(', ')]);
+    });
+    /* 2. a keyword taken apart */
+    const splits = list.map(k => {
+      const x = KWR[k.id]; if (!x || x.nosplit) return null;      /* nosplit: its parts leave out the root that carries the meaning */
+      const own = (x.parts || []).length >= 2, ids = own ? x.parts : ((x.pro || []).length >= 2 ? x.pro : null);
+      if (!ids || ids.length > 4) return null;                 /* five parts in a row make a choice nobody can read */
+      const roots = ids.filter(pid => P[pid].cls !== 'ending').length;
+      if (roots < 1 || new Set(ids.map(pid => gloss(P[pid]))).size !== ids.length) return null;
+      const name = own ? wordOf(k, ids) : proOf(k);
+      if (!allSeen(ids, name)) return null;                    /* "DNA" does not show de-, oxy-, nucle-: nothing to take apart */
+      const word = heldWords(ids, name), whole = word === name;
+      /* the parts must make most of the word ("denaturation" is more than de- + -ation), and a word cut out of a longer
+         name must have two parts with a meaning of their own ("renal" out of "renal cortex" is one part and an ending) */
+      const meaning = ids.filter(pid => P[pid].cls !== 'ending');
+      if (covered(ids, word) < 0.6 || covered(meaning, word) < 0.3 || (!whole && roots < 2)) return null;
+      /* a part no topic had room to ask is at least taken apart here */
+      return { k, x, ids, own, word, whole, score: ids.filter(pid => homeless.includes(pid)).length * 40 + (whole ? 5 : 0) + roots * 10 + ids.filter(pid => asked[uid].includes(pid)).length * 3 + ids.length };
+    }).filter(Boolean);
+    const sr = seeded(uid + '.split');
+    /* never two words built the same way (digestion, physical digestion, chemical digestion): the first one stands for them */
+    const taken = [], chosen = [];
+    const core = ids => ids.filter(pid => P[pid].cls !== 'ending').sort().join('+');
+    shuffled(splits, sr).sort((a, b) => b.score - a.score).forEach(s => {
+      const c = core(s.ids);
+      if (chosen.length >= ROOTS_SPLIT_MAX || taken.some(t => t === c || t.split('+').every(q => c.split('+').includes(q)) || c.split('+').every(q => t.split('+').includes(q)))) return;
+      taken.push(c); chosen.push(s);
+    });
+    chosen.forEach(s => {
+      const { k, x, ids, own, word, whole } = s, id = 'kwr.' + k.id + '.split', rnd = seeded(id);
+      const right = ids.map(pid => gloss(P[pid])).join(' + ');
+      const opts = [right], near = {};
+      for (let turn = 0; turn < ids.length * 4 && opts.length < 4; turn++) {
+        const at = turn % ids.length, q = wrongParts(P[ids[at]], rnd, 1, ids.map(pid => gloss(P[pid])))[0];
+        if (!q) continue;
+        const o = ids.map((pid, i) => i === at ? gloss(q) : gloss(P[pid])).join(' + ');
+        if (opts.includes(o)) continue;
+        opts.push(o);
+        near[o] = sentence(shownList(ids, word)[at] + ' means ' + gloss(P[ids[at]]) + '. ' + formsOf(q)[0] + ' means ' + gloss(q));
+      }
+      if (opts.length < 4) return;
+      items.push({ id, type: 'kw', input: 'choose', cmd: 'Etymology', task: 'This word is built from ' + ids.length + ' parts. What do the parts mean, in order?',
+        prompt: '{k:' + word + '} = ' + shownList(ids, word).join(' + '),
+        key: right, full: word + ' = ' + partsLine(ids, word), ko: k.ko || '',
+        def: ((x.lit && whole ? 'Read part by part: ' + sentence(x.lit) : '') + (own ? '' : ' ' + sentence(word[0].toUpperCase() + word.slice(1) + ' = ' + wordOf(k) + ' (the professional name)')) + (x.origin ? ' ' + sentence(x.origin) : '')).trim()
+          || sentence('In this topic: ' + wordOf(k, ids)),
+        opts, near, rsrc: x.src, src: 'Word parts list · ' + x.src });
+    });
+    /* 3. a word never taught, worked out from its parts */
+    const mine = MEET.filter(m => m.unit === uid);
+    const mr = seeded(uid + '.meet');
+    shuffled(mine, mr).sort((a, b) => b.parts.filter(pid => asked[uid].includes(pid)).length - a.parts.filter(pid => asked[uid].includes(pid)).length)
+      .slice(0, ROOTS_MEET_MAX).forEach(m => {
+        const hasTag = k => (((SYL_TAGS.keywords || {})[k.id] || {}).syl || []).length > 0;
+        const akin = k => KWR[k.id] && (KWR[k.id].parts || []).concat(KWR[k.id].pro || []).some(pid => m.parts.includes(pid));
+        const anchorK = list.find(k => akin(k) && hasTag(k)) || list.find(akin) || list.find(k => KWR[k.id] && hasTag(k)) || list.find(hasTag) || list[0];
+        const id = 'kwr.' + anchorK.id + '.w.' + String(m.w).toLowerCase().replace(/[^a-z0-9]+/g, '-'), rnd = seeded(id);
+        const shared = o => o.parts.filter(pid => m.parts.includes(pid) && P[pid].cls !== 'ending').length;
+        const pool = shuffled(MEET.filter(o => o !== m && !same(o.means, m.means)), rnd)
+          .sort((a, b) => shared(b) - shared(a) || (b.unit === uid ? 1 : 0) - (a.unit === uid ? 1 : 0));
+        const wrong = [];
+        pool.forEach(o => { if (wrong.length < 3 && !wrong.some(w => same(w.means, o.means))) wrong.push(o); });
+        if (wrong.length < 3) { warn.push('etymology: ' + m.w + ' has too few other words to choose from'); return; }
+        const near = {};
+        wrong.forEach(o => { near[o.means] = sentence('That is ' + o.w + ': ' + partsLine(o.parts, o.w)); });
+        items.push({ id, type: 'kw', input: 'choose', cmd: 'Etymology', task: 'You have not been taught this word. Use its parts to choose what it means.',
+          prompt: '{k:' + m.w + '}', key: m.means, full: m.w + ' = ' + partsLine(m.parts, m.w),
+          def: sentence(m.means[0].toUpperCase() + m.means.slice(1)) + ' This word is not in your keyword list. You may meet it when you read.',
+          opts: [m.means].concat(wrong.map(o => o.means)), near, rsrc: m.src, src: 'Word parts list · ' + m.src });
+      });
+    if (items.length < ROOTS_SET_MIN) { warn.push('etymology: ' + uid + ' has only ' + items.length + ' question(s), so it gets no set'); return; }
+    const sid = uid + '.kw.roots';
+    const learn = { id: 'kwr.learn.' + uid, type: 'learn', title: 'Etymology: the parts of this topic’s words',
+      body: ['Etymology is the study of where words come from. Many biology words are built from Greek and Latin parts. Learn a part once, and you can work out words you have never been taught.',
+        ...(rows.length ? [{ table: { head: ['Word part', 'It means', 'You have met it in'], rows } }] : []),
+        'Every part of this topic, with where it comes from, is on the topic’s keyword page.'] };
+    SETS[sid] = { id: sid, unit: uid, kind: 'kw', auto: true, roots: true, title: 'Keywords: etymology',
+      blurb: 'The Greek and Latin parts this topic’s words are built from, and new words to work out from them', items: [learn].concat(items) };
+    made[uid] = sid;
+  });
+
+  /* what the pages draw */
+  const R = { groups: GROUPS, parts: {}, units: {}, kw: {}, meet: {}, set: made };
+  PARTS.forEach(p => {
+    const us = ranked(p.id), ex = [];
+    if (!us.length && !meetOf(p.id).length) return;      /* only practical-skills or IB keywords have it: nothing to show yet */
+    us.forEach(u => inUnit[u][p.id].forEach(i => { const w = (KWR[i].parts || []).includes(p.id) ? wordOf(kwById[i], KWR[i].parts) : proOf(kwById[i]); if (ex.length < 4 && !ex.includes(w)) ex.push(w); }));
+    R.parts[p.id] = { p: formsOf(p).join(', '), m: p.means, ...(p.short ? { sh: p.short } : {}), g: GROUPS.indexOf(p.group), o: fromLine(p), s: p.src, ...(p.ko ? { ko: p.ko } : {}), ...(p.note ? { n: p.note } : {}),
+      u: us, x: ex, w: meetOf(p.id).slice(0, 3).map(m => [m.w, m.means]) };
+  });
+  unitOrder.forEach(u => { const ids = Object.keys(inUnit[u] || {}).sort((a, b) => count(u, b) - count(u, a) || a.localeCompare(b)); if (ids.length) R.units[u] = ids; });
+  Object.entries(KWR).forEach(([id, x]) => {
+    if (!unitOfId[id]) return;
+    const k = kwById[id], o = {};
+    if ((x.parts || []).length) { const sh = shownList(x.parts, wordOf(k, x.parts)); o.p = x.parts.map((pid, i) => [sh[i], pid]); }
+    if ((x.pro || []).length) { const sh = shownList(x.pro, proOf(k)); o.pn = names(k.pro_en).main; o.pp = x.pro.map((pid, i) => [sh[i], pid]); }
+    if (x.lit) o.l = x.lit;
+    if (x.origin) o.o = x.origin;
+    R.kw[id] = o;
+  });
+  MEET.forEach(m => { (R.meet[m.unit] = R.meet[m.unit] || []).push([m.w, m.parts, m.means]); });
+  /* the dictionaries the list was checked in, most used first: the #/roots page names them */
+  const dict = {};
+  PARTS.concat(Object.values(KWR), MEET).forEach(x => String(x.src || '').split(';').forEach(s => { const d = s.split(':')[0].trim(); if (d) dict[d] = (dict[d] || 0) + 1; }));
+  R.dicts = Object.keys(dict).sort((a, b) => dict[b] - dict[a]).slice(0, 4);
+  R.count = { parts: Object.keys(R.parts).length, kw: Object.keys(R.kw).length, meet: MEET.length };
+  return R;
+}
+const ROOTS = RT ? buildRoots() : null;
+
 /* authored keyword questions borrow the Korean from the same list */
 /* Korean for an authored keyword item, found by any name the list gives the word. A word's OWN
    names win ("Enzyme"; "Exponential (log) phase" read as "exponential phase" and "exponential log
@@ -411,7 +713,7 @@ for (const s of Object.values(SETS)) {
   const modes = { data: 0, theory: 0 };
   items.forEach(it => { if (it.mode) modes[it.mode]++; });
   items.forEach(it => {
-    if (it.type === 'kw') { known.add(it.key); (it.accept || []).forEach(a => known.add(a)); (it.opts || []).forEach(a => known.add(a)); }
+    if (it.type === 'kw' && !String(it.id).startsWith('kwr.')) { known.add(it.key); (it.accept || []).forEach(a => known.add(a)); (it.opts || []).forEach(a => known.add(a)); }
     if (it.type === 'gap' || it.type === 'exam') ((it.text || '') + (it.frames || []).join(' ')).replace(/\{\{([^}]+)\}\}/g, (_, a) => { a.split('|').forEach(x => known.add(x.trim())); return ''; });
   });
   const keys = items.filter(it => it.type !== 'learn').map(it => it.id + '@' + it.h);
@@ -433,6 +735,8 @@ for (const [uid, list] of Object.entries(kwByUnit)) {
   meta.words[uid] = list.slice().sort((a, b) => String(a.subtopic).localeCompare(String(b.subtopic), 'en', { numeric: true }))
     .map(k => ({ id: k.id, t: k.en, d: k.en_def, ko: k.ko || '', s: k.subtopic || '', sup: !!k.sup }));
 }
+/* the word parts, for the keyword pages and the #/roots page (see buildRoots above) */
+if (ROOTS) meta.roots = ROOTS;
 /* The keywords the 2026–28 syllabus does not name (Daniel, 28 Sep 2026: check them against the older syllabuses and say
    which one each belongs to). From a side file, ../bio-english-lab-source/past-keywords.json, into meta — which no
    question's fingerprint covers, so nothing resets: `old` names a statement of labs-shared/syllabus-past.json,
@@ -524,7 +828,7 @@ const manifest = {
 /* ---------- report ---------- */
 const byKind = {};
 Object.values(meta.sets).forEach(s => { byKind[s.kind] = (byKind[s.kind] || 0) + s.keys.length; });
-console.log(`✓ ${Object.keys(SETS).length} sets, ${totalQ} questions (${Object.entries(byKind).map(([k, n]) => k + ' ' + n).join(', ')}), ${KEYWORDS.length} keywords`);
+console.log(`✓ ${Object.keys(SETS).length} sets, ${totalQ} questions (${Object.entries(byKind).map(([k, n]) => k + ' ' + n).join(', ')}), ${KEYWORDS.length} keywords${ROOTS ? `, ${ROOTS.count.parts} word parts in ${Object.keys(ROOTS.set).length} etymology sets` : ''}`);
 if (CHECK_ONLY) process.exit(0);
 
 /* ---------- write ---------- */

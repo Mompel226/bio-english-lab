@@ -7,7 +7,8 @@
      #/u/t7        one topic: its Keywords, Describe, Explain and Plan sets
      #/s/<set>     one set, question by question (#/s/<set>/4 opens question 4)
      #/hw/<id>     one piece of homework, for a signed-in student
-     #/w/<unit>    a topic's keyword list
+     #/w/<unit>    a topic's keyword list, with the word parts its keywords are built from
+     #/roots       etymology: every word part, group by group
      #/review      what is due again
      #/commands[/<word>]  the command-word guide (the reflection's 6_QuestionGuide.gs links
                    here — do not rename it)
@@ -209,6 +210,7 @@
     var grid2 = h('div', 'explore__g');
     var cards = [];
     if (META.guide) cards.push({ href: '#/commands', t: 'Every command word', b: 'State, suggest, compare, evaluate and the rest: what each one asks for, with a real example.' });
+    if (META.roots) cards.push({ href: '#/roots', t: 'Etymology: word parts', b: 'cardi- means heart, hepat- means liver, -cyte means cell. Learn the parts, then work out words you have never been taught.' });
     (META.extras || []).forEach(function (x) { cards.push({ href: '#/s/' + x.set, t: x.title, b: x.blurb || '' }); });
     cards.forEach(function (c) {
       var a = h('a', 'explore__c'); a.href = c.href;
@@ -509,6 +511,7 @@
     w.appendChild(h('a', 'back', '← Topic ' + T.esc(u.n) + ': ' + T.esc(u.title))).href = '#/u/' + uid;
     w.appendChild(h('header', 'uhead', '<p class="eyebrow">Topic ' + T.esc(u.n) + ' · ' + W.length + ' keywords</p><h1 class="uhead__t">Keywords: ' + T.esc(u.title) + '</h1>'));
     w.appendChild(h('p', 'sec__p', 'Read them, cover the definition, say it, check. Then test yourself: the Keywords sets ask for every one of them. These are the same definitions as the flashcards on your dashboard.'));
+    var RB = rootsBox(uid); if (RB) w.appendChild(RB);
     var dl = h('dl', 'words');
     W.forEach(function (x) {
       var g = h('div', 'words__i');   /* a word and its definition stay together across the columns */
@@ -518,7 +521,7 @@
       var chip = !p ? '' : ' <button type="button" class="words__past words__past--' + (p.old ? 'old' : p.beyond ? 'beyond' : 'word') + '" aria-expanded="false">' +
         (p.old ? 'old syllabus \u00b7 until ' + T.esc(((META.past.st || {})[p.old] || {}).until || '') : p.beyond ? 'beyond 0610' : 'word not in 0610') + '</button>';
       g.appendChild(h('dt', 'words__t', T.esc(x.t) + (x.sup ? ' <span class="words__sup">Supplement</span>' : '') + chip + (x.ko && CFG.koreanGloss !== false ? ' <span class="words__ko" lang="ko">' + T.esc(x.ko) + '</span>' : '')));
-      g.appendChild(h('dd', 'words__d', T.esc(x.d) + (p ? '<span class="words__pnote' + (p.old ? '' : ' words__pnote--plain') + '" hidden>' + E.pastText(p) + '</span>' : '')));
+      g.appendChild(h('dd', 'words__d', T.esc(x.d) + (META.roots ? E.rootsHTML(x.id) : '') + (p ? '<span class="words__pnote' + (p.old ? '' : ' words__pnote--plain') + '" hidden>' + E.pastText(p) + '</span>' : '')));
       dl.appendChild(g);
     });
     dl.addEventListener('click', function (e) {
@@ -553,6 +556,111 @@
         w.appendChild(box);
       });
     }
+    main.appendChild(w);
+  }
+
+  /* ============================================================
+     ETYMOLOGY — the word parts (meta.roots, from wordparts.master.js through the build)
+     One block per part: the part, what it means, where it comes from, the keywords that have it,
+     and words outside the keyword list that a student can now work out. The same block on a topic's
+     keyword page (that topic's parts) and on #/roots (every part, group by group).
+     ============================================================ */
+  /* a keyword as it is written inside a sentence: "Hepatic artery" → "hepatic artery", "DNA" and "Benedict's test" as they are */
+  function lcWord(t) {
+    t = String(t).replace(/\s*\(.*$/, '');
+    return /^[A-Z][a-z]/.test(t) && !/^(Benedict|Bowman|Krebs|Punnett|Visking|Calvin)/.test(t) ? t.charAt(0).toLowerCase() + t.slice(1) : t;
+  }
+  function partBlock(pid, uid) {
+    var R = META.roots, p = R.parts[pid]; if (!p) return null;
+    var g = h('div', 'part');
+    var mine = [];
+    if (uid) ((META.words || {})[uid] || []).forEach(function (x) {
+      var k = R.kw[x.id]; if (!k) return;
+      var own = (k.p || []).some(function (q) { return q[1] === pid; }), pro = (k.pp || []).some(function (q) { return q[1] === pid; });
+      if (own) mine.push(lcWord(x.t)); else if (pro) mine.push(lcWord(k.pn));
+    });
+    var words = uid ? mine : (p.x || []);
+    g.appendChild(h('dt', 'part__t', '<b>' + T.esc(p.p) + '</b> <span class="part__m">' + T.esc(p.m) + '</span>' +
+      (p.ko && CFG.koreanGloss !== false ? ' <span class="words__ko" lang="ko">' + T.esc(p.ko) + '</span>' : '')));
+    var dd = '<span class="part__o">' + T.esc(p.o) + (p.n ? ' ' + T.esc(p.n) + '.' : '') + '</span>';
+    if (words.length) dd += '<span class="part__l"><span class="part__k">' + (uid ? 'In this topic' : 'In your keywords') + '</span>' + T.esc(words.slice(0, 6).join(', ')) + '</span>';
+    if ((p.w || []).length) dd += '<span class="part__l"><span class="part__k">You may also meet</span>' + p.w.map(function (m) { return '<b>' + T.esc(m[0]) + '</b> ' + T.esc(m[1]); }).join('; ') + '</span>';
+    if (!uid && (p.u || []).length) dd += '<span class="part__l part__l--u"><span class="part__k">Topics</span>' + p.u.slice(0, 8).map(function (u) {
+      return META.units[u] ? '<a class="part__u" href="#/u/' + u + '">' + T.esc(META.units[u].n) + '</a>' : ''; }).join(' ') + '</span>';
+    g.appendChild(h('dd', 'part__d', dd));
+    return g;
+  }
+  /* a topic's parts, folded away on its keyword page: the list is long, and the keywords come first */
+  function rootsBox(uid) {
+    var R = META.roots, ids = R && R.units[uid];
+    if (!ids || !ids.length) return null;
+    var box = h('details', 'rootsbox');
+    box.appendChild(h('summary', 'rootsbox__s', 'Etymology: the ' + ids.length + ' word parts in this topic’s keywords'));
+    var inn = h('div', 'rootsbox__b');
+    inn.appendChild(h('p', 'sec__p', 'Many biology words are built from Greek and Latin parts. A part means the same in every word that has it. ' +
+      'Each part below shows what it means, where it comes from and the words of this topic that have it.'));
+    inn.appendChild(h('p', 'rootsbox__links', (R.set[uid] ? '<a class="wordslink" href="#/s/' + R.set[uid] + '">Practise them: Keywords: etymology →</a>' : '') +
+      '<a class="wordslink" href="#/roots">Every word part, group by group →</a>'));
+    var dl = h('dl', 'parts');
+    ids.forEach(function (pid) { var b = partBlock(pid, uid); if (b) dl.appendChild(b); });
+    inn.appendChild(dl);
+    box.appendChild(inn);
+    return box;
+  }
+  function viewRoots() {
+    var R = META.roots;
+    if (!R) { go('#/'); return; }
+    main.innerHTML = '';
+    var w = h('div', 'wrap rootsp');
+    w.appendChild(h('a', 'back', '← Bio English Lab')).href = '#/';
+    w.appendChild(h('header', 'uhead', '<p class="eyebrow">Etymology · ' + Object.keys(R.parts).length + ' word parts</p><h1 class="uhead__t">How biology words are built</h1>'));
+    w.appendChild(h('p', 'sec__p', 'Etymology is the study of where words come from. Most long biology words are built from Greek and Latin parts, and a part means the same in every word that has it. Learn a part once, and you can work out a word you have never been taught.'));
+    /* one word, taken apart: from the list itself, so it can never disagree with it */
+    var exId = ['phagocytosis', 'photosynthesis', 'haemoglobin'].filter(function (id) { return R.kw[id] && (R.kw[id].p || []).length > 1; })[0];
+    if (exId) {
+      var ex = h('section', 'rootsex'), name = '';
+      Object.keys(META.words || {}).forEach(function (u) { META.words[u].forEach(function (x) { if (x.id === exId) name = lcWord(x.t); }); });
+      ex.innerHTML = '<p class="example__tag">An example</p><p class="rootsex__w">' + T.esc(name) + '</p>' + E.rootsHTML(exId) +
+        (R.kw[exId].l ? '<p class="rootsex__l">Read part by part: ' + T.esc(R.kw[exId].l) + '.</p>' : '');
+      w.appendChild(ex);
+    }
+    w.appendChild(h('p', 'sec__p', 'A <b>prefix</b> comes at the start of a word (de-, anti-, hyper-). A <b>root</b> carries the main meaning (cardi-, hepat-). A <b>suffix</b> comes at the end (-cyte, -osis, -ase). The hyphen shows where the rest of the word joins. ' +
+      'Each topic has a set called <b>Keywords: etymology</b> that tests the parts of that topic.'));
+    var find = h('div', 'rootsfind');
+    find.innerHTML = '<label class="rootsfind__l" for="rootsq">Find a part or a meaning</label><input id="rootsq" class="gap gap--wide" type="search" autocomplete="off" spellcheck="false" placeholder="hepat, liver, cell …"><span class="rootsfind__n" role="status" aria-live="polite"></span>';
+    w.appendChild(find);
+    var groups = h('div', 'rootsgroups'), secs = [];
+    R.groups.forEach(function (gname, gi) {
+      var ids = Object.keys(R.parts).filter(function (pid) { return R.parts[pid].g === gi; });
+      if (!ids.length) return;
+      var d = h('details', 'rootsbox rootsbox--group');
+      d.appendChild(h('summary', 'rootsbox__s', T.esc(gname) + ' <span class="frames__n">' + ids.length + '</span>'));
+      var dl = h('dl', 'parts'), blocks = [];
+      ids.forEach(function (pid) {
+        var b = partBlock(pid, null); if (!b) return;
+        var p = R.parts[pid];
+        b.setAttribute('data-q', (p.p + ' ' + p.m + ' ' + (p.x || []).join(' ') + ' ' + (p.w || []).map(function (m) { return m[0]; }).join(' ')).toLowerCase());
+        dl.appendChild(b); blocks.push(b);
+      });
+      var inn = h('div', 'rootsbox__b'); inn.appendChild(dl); d.appendChild(inn);
+      /* one group open at a time: the list is long, and a reader wants one kind of part */
+      d.addEventListener('toggle', function () { if (d.open && !searching) secs.forEach(function (s) { if (s.d !== d) s.d.open = false; }); });
+      groups.appendChild(d); secs.push({ d: d, blocks: blocks });
+    });
+    var searching = false;
+    var inp = find.querySelector('input'), nOut = find.querySelector('.rootsfind__n');
+    inp.addEventListener('input', function () {
+      var q = inp.value.trim().toLowerCase().replace(/-/g, ''), n = 0;
+      searching = !!q;
+      secs.forEach(function (s) {
+        var any = false;
+        s.blocks.forEach(function (b) { var hit = !q || b.getAttribute('data-q').replace(/-/g, '').indexOf(q) >= 0; b.hidden = !hit; if (hit) { any = true; if (q) n++; } });
+        s.d.hidden = !any; s.d.open = !!q && any;
+      });
+      nOut.textContent = q ? (n ? n + ' part' + (n === 1 ? '' : 's') : 'No part matches.') : '';
+    });
+    w.appendChild(groups);
+    w.appendChild(h('p', 'sec__p rootsp__src', 'Every meaning and origin on this page was checked in a dictionary' + ((R.dicts || []).length ? ': ' + R.dicts.map(function (d) { return T.esc(/^(Online|American)/.test(d) ? 'the ' + d : d); }).join(', ') : '') + '. A question in a topic’s etymology set names its dictionary with the answer.'));
     main.appendChild(w);
   }
 
@@ -933,6 +1041,7 @@
     else if (p[0] === 'hw' && p[1]) { viewHomework(decodeURIComponent(p[1])); }
     else if (p[0] === 'w' && p[1]) { viewWords(p[1]); }
     else if (p[0] === 'review') { viewReview(); }
+    else if (p[0] === 'roots') { viewRoots(); }
     else if (p[0] === 'commands') { viewGuide(p[1] ? decodeURIComponent(p[1]) : ''); }
     else if (/^y\d+$/.test(p[0])) { viewHome(parseInt(p[0].slice(1), 10)); }
     else { viewHome(null); }

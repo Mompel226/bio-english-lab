@@ -93,10 +93,12 @@
   function pastMeta() { return (global.AL && global.AL.meta && global.AL.meta.past) || null; }
   var pastByTerm = null;
   function pastOfId(id) { var P = pastMeta(); return P && id ? P.id[id] || null : null; }
-  function pastOfItem(item) {
-    if (item.type !== 'kw') return null;
+  /* the keyword of the list a keyword card is about: a meanings question by its id, an authored one by its word.
+     An etymology question (kwr.…) is about a word part, not a keyword. */
+  function kwIdOfItem(item) {
+    if (item.type !== 'kw' || String(item.id || '').indexOf('kwr.') === 0) return null;
     var id = String(item.id || '').indexOf('kwm.') === 0 ? String(item.id).slice(4) : null;
-    if (!id && item.key && pastMeta()) {
+    if (!id && item.key && global.AL && global.AL.meta) {
       if (!pastByTerm) {
         pastByTerm = {};
         var W = (global.AL.meta.words) || {};
@@ -104,7 +106,24 @@
       }
       id = pastByTerm[String(item.key).toLowerCase()];
     }
-    return pastOfId(id);
+    return id || null;
+  }
+  function pastOfItem(item) { return pastMeta() ? pastOfId(kwIdOfItem(item)) : null; }
+  /* Etymology (2 Oct 2026): the parts a keyword is built from, and where the word comes from. meta.roots, from the
+     build; display only and never part of a question, so nothing resets. A card shows it after it is answered,
+     never before; the Keywords page and the #/roots page show the same words (app.js). */
+  function rootsMeta() { return (global.AL && global.AL.meta && global.AL.meta.roots) || null; }
+  function rootsHTML(id) {
+    var R = rootsMeta(), x = R && id ? R.kw[id] : null;
+    if (!x) return '';
+    function line(pairs) {
+      return pairs.map(function (q) { var p = R.parts[q[1]] || {}; return '<span class="wp"><b>' + T.esc(q[0]) + '</b> ' + T.esc(p.sh || p.m || '') + '</span>'; }).join('<span class="wp__plus">+</span>');
+    }
+    var out = '';
+    if (x.p) out += '<span class="wroot__l"><span class="wroot__k">Word parts</span><span class="wroot__v">' + line(x.p) + '</span></span>';
+    if (x.pp) out += '<span class="wroot__l"><span class="wroot__k">' + T.esc(x.pn) + '</span><span class="wroot__v">' + line(x.pp) + '</span></span>';
+    if (x.o) out += '<span class="wroot__l"><span class="wroot__k">Origin</span><span class="wroot__v">' + T.esc(x.o) + '</span></span>';
+    return out ? '<span class="wroot">' + out + '</span>' : '';
   }
   function pastText(p) {
     var P = pastMeta() || { st: {} };
@@ -278,6 +297,8 @@
         b.appendChild(ol);
       } else if (p.legend) {
         b.appendChild(legend());
+      } else if (p.table) {
+        var tf = figure({ table: p.table, cap: p.cap }); tf.classList.add('fig--list'); b.appendChild(tf);
       }
     });
     var m = modelBlock(item); if (m) b.appendChild(m);
@@ -856,8 +877,9 @@
   }
   function keyCard(item) {
     return '<span class="kcard"><b class="kcard__t">' + T.esc(item.full || item.key) + '</b>' + (item.def ? '<span class="kcard__d">' + T.esc(item.def) + '</span>' : '') +
-      (item.ko && (global.AL_CONFIG || {}).koreanGloss !== false ? '<span class="kcard__ko" lang="ko">' + T.esc(item.ko) + '</span>' : '') + '</span>' +
-      extrasHTML(item);
+      (item.ko && (global.AL_CONFIG || {}).koreanGloss !== false ? '<span class="kcard__ko" lang="ko">' + T.esc(item.ko) + '</span>' : '') +
+      (item.rsrc ? '<span class="kcard__src">Checked in: ' + T.esc(item.rsrc) + '</span>' : '') + '</span>' +
+      rootsHTML(kwIdOfItem(item)) + extrasHTML(item);
   }
 
   /* ============================================================
@@ -1025,5 +1047,5 @@
     return mk(item, ctx || {});
   }
   global.AEngine = { render: render, KIND: KIND, modelBlock: modelBlock, legend: legend, parseChoices: parseChoices, parseGaps: parseGaps,
-                     pastOfId: pastOfId, pastText: pastText };
+                     pastOfId: pastOfId, pastText: pastText, rootsHTML: rootsHTML };
 })(window);
