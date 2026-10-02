@@ -138,3 +138,36 @@ anyway — a longer word built on it (ciliated, flowering) or its head word as a
 mesophyll) — give the keyword `ask:`, the question's own prompt; the flashcards keep the definition.
 The build stops if a one-word keyword's prompt still spells it, or if a keyword has too few others in
 its topic to choose from (a unit cut out of a topic, like 14.5, borrows from the topic).
+
+## Etymology (word parts)
+
+`wordparts.master.js` (beside the keyword list, never published) is the ONE list of the Greek and Latin
+parts biology words are built from: cardi- (heart), hepat- (liver), -cyte (cell). The build makes one more
+keyword set for every topic from it, "Keywords: etymology" (`<unit>.kw.roots`), and the pages show the rest:
+the parts of each keyword on the topic's keyword list and under an answered keyword question, and every
+part, group by group, on `#/roots`.
+
+**Check it in a dictionary first, and say which.** Every part, every keyword's origin and every extra word
+carries `src`: the dictionary's name and the headword (`Online Etymology Dictionary: hepatic`). The claim
+must be on that page. Give the LITERAL meaning of the original word (Latin ventriculus is "little belly").
+A look-alike is not a root: the por- of "portal vein" is Latin porta, a gate, not port- (carry); the di- of
+"digestion" is dis- (apart), not di- (two); mitt- (send) is not mit- (thread).
+
+- `PARTS`: `id` (never changes), `part` (its forms, British spelling), `means`, `short` (a gloss for
+  "blood + cell" lines when `means` is long), `ko`, `origin` (language, the original word, its literal
+  meaning), `src`, `group` (a heading on `#/roots`), `cls` (which other parts make near-miss wrong answers:
+  organs with organs), `plain: true` (the meaning is the word itself, arteri- = artery: listed, never asked).
+- `KW`, by keyword id: `parts` (the part ids, in the order they occur in the word), `pro` (the same for
+  its professional term), `lit` (the parts read literally, when there are two or more), `origin` (ONE
+  sentence on where the word comes from, only when the picture helps to remember it: atrium, an entrance
+  hall), `src`. A keyword whose only parts are endings (-tion, -ic) gets no `parts`.
+- `MEET`: a word that is NOT a keyword, which a student can work out from the parts (hepatitis,
+  cardiovascular): `w`, `parts`, `means` (plain, at most 12 words), `unit`, `src`. Common words a student
+  meets when reading, never obscure ones.
+
+The set asks three things, each a choice of four: what a part means; what the parts of a keyword mean, in
+order; and what a word never taught must mean. A part is asked in one topic, the one with most keywords
+built from it. Nothing from this file goes INSIDE a keyword question: it travels beside them (`meta.roots`),
+so adding or correcting a part never restarts an answered keyword question. An etymology question's own
+words do restart it, like any other question.
+
