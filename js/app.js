@@ -597,7 +597,7 @@
     var box = h('details', 'rootsbox');
     box.appendChild(h('summary', 'rootsbox__s', 'Etymology: the ' + ids.length + ' word parts in this topic’s keywords'));
     var inn = h('div', 'rootsbox__b');
-    inn.appendChild(h('p', 'sec__p', 'Many biology words are built from Greek and Latin parts. A part means the same in every word that has it. ' +
+    inn.appendChild(h('p', 'sec__p', 'Many biology words are built from Greek and Latin parts, and a part usually keeps its meaning from word to word. ' +
       'Each part below shows what it means, where it comes from and the words of this topic that have it.'));
     inn.appendChild(h('p', 'rootsbox__links', (R.set[uid] ? '<a class="wordslink" href="#/s/' + R.set[uid] + '">Practise them: Keywords: etymology →</a>' : '') +
       '<a class="wordslink" href="#/roots">Every word part, group by group →</a>'));
@@ -614,7 +614,7 @@
     var w = h('div', 'wrap rootsp');
     w.appendChild(h('a', 'back', '← Bio English Lab')).href = '#/';
     w.appendChild(h('header', 'uhead', '<p class="eyebrow">Etymology · ' + Object.keys(R.parts).length + ' word parts</p><h1 class="uhead__t">How biology words are built</h1>'));
-    w.appendChild(h('p', 'sec__p', 'Etymology is the study of where words come from. Most long biology words are built from Greek and Latin parts, and a part means the same in every word that has it. Learn a part once, and you can work out a word you have never been taught.'));
+    w.appendChild(h('p', 'sec__p', 'Etymology is the study of where words come from. Most long biology words are built from Greek and Latin parts, and a part usually keeps its meaning from word to word. Learn a part once, and you can often work out a word you have never been taught.'));
     /* one word, taken apart: from the list itself, so it can never disagree with it */
     var exId = ['phagocytosis', 'photosynthesis', 'haemoglobin'].filter(function (id) { return R.kw[id] && (R.kw[id].p || []).length > 1; })[0];
     if (exId) {
@@ -626,6 +626,7 @@
     }
     w.appendChild(h('p', 'sec__p', 'A <b>prefix</b> comes at the start of a word (de-, anti-, hyper-). A <b>root</b> carries the main meaning (cardi-, hepat-). A <b>suffix</b> comes at the end (-cyte, -osis, -ase). The hyphen shows where the rest of the word joins. ' +
       'Each topic has a set called <b>Keywords: etymology</b> that tests the parts of that topic.'));
+    w.appendChild(h('p', 'sec__p', 'A part is shown under a word only when you can see it in the word and it has its usual meaning there. Letters that only look like a part are not one: the bi in recombinant is not bi- (two), and the di- of digestion is not di- (two). Where an older part is hidden inside a word, the line <b>Origin</b> says so.'));
     var find = h('div', 'rootsfind');
     find.innerHTML = '<label class="rootsfind__l" for="rootsq">Find a part or a meaning</label><input id="rootsq" class="gap gap--wide" type="search" autocomplete="off" spellcheck="false" placeholder="hepat, liver, cell …"><span class="rootsfind__n" role="status" aria-live="polite"></span>';
     w.appendChild(find);

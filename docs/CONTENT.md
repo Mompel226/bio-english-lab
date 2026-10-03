@@ -153,6 +153,41 @@ must be on that page. Give the LITERAL meaning of the original word (Latin ventr
 A look-alike is not a root: the por- of "portal vein" is Latin porta, a gate, not port- (carry); the di- of
 "digestion" is dis- (apart), not di- (two); mitt- (send) is not mit- (thread).
 
+**Which parts a word may be given (the rule of the audit of 2–3 Oct 2026).** Read the word's own etymology, then
+give it a part only at one of the first two levels:
+
+- **built**: the word was made from this element, in a modern language or in scientific Latin or Greek
+  (bi- + nomial, hepat- + -ic, German Bi-uret = bi- + urea);
+- **inherited**: the word came whole from Latin or Greek, where it already held the element, and the element is
+  still plain to see in the English spelling with its usual meaning (ex-cretion, di-gestion, trans-port);
+- **buried**: the element is real somewhere in the word's history but a student cannot see it or reuse it. It sits
+  inside another stem (bini inside com-bin-e, so recombinant has no bi-), or it is disguised (ex- written ef- in
+  effector, syn- written sy- in system), or it has another sense there (hydro- standing for hydrogen in
+  hydrochloric, anti- clipped from antibody in antigen). A buried element is NOT a part of the word: say it in
+  `origin` if the picture helps;
+- **wrong**: the etymology does not hold the element at all.
+
+A part's `means` is its meaning in English scientific words, with the ancestor's meaning in a closing bracket
+("lymph (literally: clear water)"); the choices in a question drop that bracket. Forms that are different elements
+with the same job (-ic, -al, -ary; in-, non-, un-) may share an entry only if its `origin` says so. A part that
+looks like another gets a `note` (cent- / centr-, mit- / mitt-, sept- wall / septic). `ALIKE` lists parts that mean
+nearly the same (bi-, di-, diplo-), so one is never a wrong choice for another.
+
+**True is not enough: it must HELP (Daniel, 3 Oct 2026).** The section is for students to learn without being
+overwhelmed. A part goes on a word only if reading it leads to the word's meaning in biology (hepat- + -ic: of the
+liver; myo- + card- + -itis: inflammation of the heart muscle), and an origin sentence only if its picture makes the
+word easier to understand or remember (atrium, an entrance hall; capillary, a hair). A part that is true but leads
+away from the meaning (effector: ef- + fect- + -or; system: sy- + stem) is left out, because it is one more thing to
+remember. Grammar endings (-tion, -ic, -er, -able, -ity) are never shown on a word. Words to meet are the common ones
+a student will read (hepatitis, cardiovascular, antibiotic), never rare ones. A part is ASKED only if students meet it
+in two words or more; a topic's set stays small (at most 10 parts, 4 words taken apart, 5 words to work out). The
+lists of what was kept are in `audit/word-parts/overrides.py` (the section DANIEL'S RULE).
+
+The build checks what a machine can: every part given to a word must be FOUND in its letters, left to right, each
+in one of its listed forms, with at most one shared letter at a join (haplo- + -oid); and a word is never shown as
+built from itself (vein = ven-). Passing those gates proves nothing about the etymology: letters can spell a part
+by chance (the bi in recombinant). Only the dictionary check does that, and `src` records it.
+
 - `PARTS`: `id` (never changes), `part` (its forms, British spelling), `means`, `short` (a gloss for
   "blood + cell" lines when `means` is long), `ko`, `origin` (language, the original word, its literal
   meaning), `src`, `group` (a heading on `#/roots`), `cls` (which other parts make near-miss wrong answers:
@@ -160,7 +195,8 @@ A look-alike is not a root: the por- of "portal vein" is Latin porta, a gate, no
 - `KW`, by keyword id: `parts` (the part ids, in the order they occur in the word), `pro` (the same for
   its professional term), `lit` (the parts read literally, when there are two or more), `origin` (ONE
   sentence on where the word comes from, only when the picture helps to remember it: atrium, an entrance
-  hall), `src`. A keyword whose only parts are endings (-tion, -ic) gets no `parts`.
+  hall), `src`, `nosplit: true` (its parts are shown, never asked as a split: they leave out the root that carries
+  the meaning). A keyword whose only parts are endings (-tion, -ic) gets no `parts`.
 - `MEET`: a word that is NOT a keyword, which a student can work out from the parts (hepatitis,
   cardiovascular): `w`, `parts`, `means` (plain, at most 12 words), `unit`, `src`. Common words a student
   meets when reading, never obscure ones.
