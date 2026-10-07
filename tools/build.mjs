@@ -162,6 +162,12 @@ function checkItem(it, where) {
         if (!Array.isArray(g) || g.length < 2 || g.length > 4) bad(where, 'an anyOrder group needs 2 to 4 gaps: ' + JSON.stringify(g));
         else g.forEach(j => { if (!Number.isInteger(j) || j < 0 || j >= n) bad(where, 'anyOrder: there is no gap ' + j); else if (seen.has(j)) bad(where, 'anyOrder: gap ' + j + ' is in two groups'); seen.add(j); });
       });
+      /* one word under two gaps of a group (8 Oct 2026, the third answers audit): the page tries every order of the group's
+         accept lists, so a word accepted in two of its gaps lets two synonyms of ONE point score as both points
+         ("reproduce" + "breed" for "survive and reproduce", t18e2.g1). Each gap of a group lists the words of its own point only. */
+      { const lists = ((it.text || '').match(/\{\{[^}]+\}\}/g) || []).map(m => m.slice(2, -2).split('|').map(w => w.trim().toLowerCase().replace(/\s+/g, ' ')));
+        (it.anyOrder || []).forEach(g => { if (!Array.isArray(g)) return; const owner = {};
+          g.forEach(j => (lists[j] || []).forEach(w => { if (w in owner && owner[w] !== j) bad(where, `anyOrder: "${w}" is accepted in gap ${owner[w]} and gap ${j} of one group, so two words for one point would score both`); else owner[w] = j; })); }); }
       break;
     }
     case 'sort': {
