@@ -144,8 +144,26 @@ function checkItem(it, where) {
       if (!c.some(x => !x.x)) bad(where, 'trim has nothing to keep');
       break;
     }
-    case 'order': if ((it.steps || []).length < 3) bad(where, 'order needs 3+ steps'); break;
-    case 'gap': if (!/\{\{[^}]+\}\}/.test(it.text || '')) bad(where, 'gap has no {{…}}'); break;
+    case 'order': {
+      if ((it.steps || []).length < 3) bad(where, 'order needs 3+ steps');
+      /* other right orders (7 Oct 2026): each a rearrangement of every step, and none the authored order again */
+      const all = (it.steps || []).map((_, i) => i).join();
+      (it.orders || []).forEach(o => {
+        if (!Array.isArray(o) || o.slice().sort((a, b) => a - b).join() !== all) bad(where, 'an alternative order that is not a rearrangement of every step: ' + o);
+        else if (o.join() === all) bad(where, 'an alternative order that is the authored order');
+      });
+      break;
+    }
+    case 'gap': {
+      if (!/\{\{[^}]+\}\}/.test(it.text || '')) bad(where, 'gap has no {{…}}');
+      /* gaps that are a list (7 Oct 2026): groups of 2–4 gap indexes, each gap in one group at most */
+      const n = ((it.text || '').match(/\{\{[^}]+\}\}/g) || []).length, seen = new Set();
+      (it.anyOrder || []).forEach(g => {
+        if (!Array.isArray(g) || g.length < 2 || g.length > 4) bad(where, 'an anyOrder group needs 2 to 4 gaps: ' + JSON.stringify(g));
+        else g.forEach(j => { if (!Number.isInteger(j) || j < 0 || j >= n) bad(where, 'anyOrder: there is no gap ' + j); else if (seen.has(j)) bad(where, 'anyOrder: gap ' + j + ' is in two groups'); seen.add(j); });
+      });
+      break;
+    }
     case 'sort': {
       if ((it.bins || []).length < 2) bad(where, 'sort needs 2+ groups');
       (it.items || []).forEach((x, i) => { if (!(x.b >= 0 && x.b < it.bins.length)) bad(where, `sort piece ${i + 1} has no valid group`); });
@@ -738,7 +756,18 @@ for (const s of Object.values(SETS)) {
   const items = s.items.map(it => {
     let x = (it.type === 'kw' && !it.ko && koFor(it.key)) ? { ...it, ko: koFor(it.key) } : it;
     if ((s.kind === 'describe' || s.kind === 'explain' || s.kind === 'method') && it.type !== 'learn' && /^(Describe|Explain)/i.test(String(it.cmd || ''))) x = { ...x, mode: modeOf(it) };
-    return { ...x, h: fnv(canon(x)) };
+    /* `keep` (7 Oct 2026, the practice-questions audit): a question reworded WITHOUT changing what it asks keeps the
+       fingerprint its answers were saved under, so nobody's answers, first tries or set restarts (Daniel: the options of
+       "Which answer scores?" were rewritten so that the right one is no longer the longest, and the work pupils had done
+       was not to be lost). keep = { h: the old fingerprint, now: the fingerprint of the wording it was declared for }. It
+       holds only while the question reads exactly as declared; written by tools/keep-records.mjs after it has checked that
+       only the options' words changed, never by hand. Never shipped to the page. */
+    const { keep, ...rest } = x, h0 = fnv(canon(rest));
+    if (keep) {
+      if (keep.now === h0 && typeof keep.h === 'string') return { ...rest, h: keep.h };
+      bad(it.id, `its keep (${keep.on || 'no date'}) no longer applies: the question was reworded since, so it would restart for every pupil. Take the keep out of the master; then, if it still asks the same thing, run tools/keep-records.mjs with the masters from before (the new keep carries the first fingerprint on)`);
+    }
+    return { ...rest, h: h0 };
   });
   const modes = { data: 0, theory: 0 };
   items.forEach(it => { if (it.mode) modes[it.mode]++; });

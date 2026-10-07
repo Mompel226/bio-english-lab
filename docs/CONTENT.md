@@ -5,6 +5,16 @@ Everything a student sees is authored in `../bio-english-lab-source/` (never pub
 `node tools/selftest-run.mjs` answers every question right and wrong in a real browser and fails
 if either marking is wrong. Both must pass before anything is published.
 
+**Changing a question pupils have answered** (7 Oct 2026). Every word of a question is in its fingerprint `h` (answers
+are kept as `id@h`): a new `h` restarts that question on every pupil's browser and changes its set's `v`, so the
+spreadsheet starts that set's record again. A reword that still asks the same thing (only the options' words and `why`,
+or other right orders: `orders`, `anyOrder`) keeps the old `h`: first copy `../bio-english-lab-source/` (its
+`topics/` and `methods.master.js`) to a scratch folder, then edit, then run
+`node tools/keep-records.mjs --was-masters <that folder>` (it reports) and again with `--write`; it writes
+`keep: { h, now }` after the question's id and proves it with a staging build. The build refuses a keep that no longer
+applies: to reword a kept question again, take its keep out first. Anything else restarts the question: tell Daniel
+which ones first. The rules for every site, wrong options included: `Biology Hub/docs/QUESTION-STANDARD.md`.
+
 ## The one rule about sources
 
 **Every question is based on something real, and says so in `src`.**
@@ -111,8 +121,8 @@ write "The mark scheme ignores “water concentration”", not "I water concentr
 | `build` | `chunks` (the answer, in order, 3–6 phrase-sized pieces), `extra` (1–2 pieces that score nothing), optional `orders` (other right orders as index lists) | whole line |
 | `fix` | `text` with `{weak}` words, `flaws: [{ fix, opts:[…fix among them], why }]` in order; optional `find: true` makes the student find the weak words first (no underlines) | each word |
 | `trim` | `chunks: [{ t }, { t, x:true, why }]` — `x` = scores nothing, strike it | whole answer |
-| `order` | `steps` in the right order (3–6) | whole order |
-| `gap` | `text` with `{{answer|also accepted}}` gaps | each gap (spelling slips forgiven, but never one that makes another biology word) |
+| `order` | `steps` in the right order (3–6), optional `orders` (other right orders as index lists, as on `build`) | whole order |
+| `gap` | `text` with `{{answer|also accepted}}` gaps, optional `anyOrder` (groups of 2–4 gap indexes, from 0, whose words are a list and may come in any order; one word typed twice in a group scores once) | each gap (spelling slips forgiven, but never one that makes another biology word) |
 | `sort` | `bins: […]`, `items: [{ t, b: binIndex }]` | whole answer |
 | `mark` | `answer` (a realistic weak student answer), `scheme: [{ t, got:true/false, why }]` | whole answer |
 | `exam` | `ideas: [{ t, ok:true }, { t, ok:false, why }]`, `frames` (one sentence per scoring idea, in order, each with a `{{keyword}}` gap), optional `anyOrder:true` | step by step: think → order → write |
@@ -120,7 +130,11 @@ write "The mark scheme ignores “water concentration”", not "I water concentr
 
 Distractors should be **near misses**: the confusable keyword (osmosis for diffusion), the everyday
 word (goes, food, germs), the rejected wording from a real scheme, the right idea in the wrong
-direction, the answer to a different command word (a reason in a describe question).
+direction, the answer to a different command word (a reason in a describe question). Write them as full and as
+careful as the right answer, in the same form and of similar length: on 7 Oct 2026 the right option of 110 of 115
+`pick` questions was the longest, and they were rewritten. In a "Which answer scores?" item, check every wrong one
+against the REAL mark scheme (`IGCSE/Past Papers/_system/text/0610`), not the `model`: it must lose marks. The full
+rules: `Biology Hub/docs/QUESTION-STANDARD.md` §3–4.
 
 ## Keywords
 
