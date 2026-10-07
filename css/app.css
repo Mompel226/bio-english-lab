@@ -169,6 +169,15 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
 .set__pct { font: 500 12px/1.2 var(--mono); color: var(--green); white-space: nowrap; }
 .ptop__p { margin: 4px 0 0; font-size: 14px; color: var(--ink-2); }
 .who__sync { font: 500 11px/1.2 var(--mono); color: var(--muted); margin-left: 10px; }
+.who__sync.is-no { color: #FF9B90; }   /* the sign-in has expired: nothing is sent until the pupil signs in again (light red: the masthead is ink) */
+.who__btn:not([hidden]) + .who__card { margin-left: 12px; }   /* Google's button beside the card, when the sign-in has expired */
+@media (max-width: 560px) {   /* a phone, signed in: the card takes its own row under the site's name. Beside it, it made the page
+                                 wider than the phone, and an expired sign-in's warning fell off the edge (6 Oct 2026) */
+  .mast__in:has(.who__card:not([hidden])) { grid-template-areas: "up up" "brand brand" "who who" "sub sub" "maker maker"; }
+  .mast__in:has(.who__card:not([hidden])) .who { justify-content: flex-start; margin: 4px 0 2px; }
+  .who__card { flex-wrap: wrap; row-gap: 4px; }
+  .who__sync { margin-left: 0; }
+}
 .hw__p { margin: 0 0 8px; font-size: 14px; color: var(--ink-2); }
 .unit { display: grid; grid-template-columns: 64px 1fr auto; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--rule); text-decoration: none; }
 .unit:hover .unit__t, .unit:focus-visible .unit__t { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }

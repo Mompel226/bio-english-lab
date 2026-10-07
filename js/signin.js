@@ -16,7 +16,9 @@
      SignIn.who()    who signed in on this browser and has not signed out since. Kept after
                      the token runs out, so a page can still greet them and renew it.
      SignIn.live()   the same, but only while the token has more than a minute left — the
-                     only thing ever worth sending to a server.
+                     only Google token ever worth sending to a server. (Since 6 Oct 2026 a page
+                     may also send the labs script's own pass, SignIn.pass() below, for the
+                     same pupil only, once Google's hour is up.)
 
    SignIn.renew() asks Google for a new token for THAT SAME account, without a click when it
    can: Google gives one at once to somebody still signed in to Google in this browser who has
@@ -26,6 +28,10 @@
 
    Nothing here is trusted by a server. The token is opened only to show a name and to know
    when it runs out; the labs script asks Google to check its signature before it reads a word.
+
+   SignIn.creds()  what a request to the labs script carries: Google's sign-in while it is fresh,
+                   and the labs script's own pass (6 Oct 2026, below), so saving goes on after
+                   Google's hour. null when there is neither: then the page says "sign in again".
    ============================================================ */
 (function (global) {
   'use strict';
@@ -39,7 +45,11 @@
   var OURS = /^(biology-hub|[a-z0-9-]+-lab)\.signin$/;
   var THEIRS = ['vetsoc.signin'];
 
-  var cid = '', listeners = [], waiting = null, waitTimer = null;
+  var cid = '', listeners = [], waiting = null, waitTimer = null, waitingFor = '';   /* waitingFor: the account a renewal is out for */
+
+  var PASS_KEY = 'biology.pass';             /* the labs script's own pass (6 Oct 2026): see below */
+  var PASS_KEEP = 29 * 24 * 3600 * 1000;     /* asked for again once it is a day old, while Google's sign-in is fresh */
+  var passUrl = '', passAsking = '';
 
   function store() { try { return global.localStorage || null; } catch (e) { return null; } }
   function get(k) {
@@ -91,8 +101,13 @@
     global.addEventListener('storage', function (e) {
       if (e.key !== KEY && e.key !== null) return;
       var v = who();
-      if (waiting && fresh(v)) settle(v, '');
-      tell(v, false);
+      tell(v, false);          /* first, so every page knows who is signed in now (the order got() keeps) … */
+      /* … then a renewal this tab was waiting for, and only with its own account. A fresh sign-in for SOMEBODY ELSE in
+         another tab is not its answer: handed over, a lab took it as the renewal and sent one pupil's waiting work with
+         another's sign-in (audit, 6 Oct 2026). */
+      if (waiting && fresh(v)) { if (!waitingFor || v.email === waitingFor) settle(v, ''); else settle(null, 'another account'); }
+      /* a fresh sign-in in another tab (the hub has no pass of its own to ask for): this page asks, if its pass is due */
+      if (fresh(v)) refreshPass();
     });
   } catch (e) {}
 
@@ -134,16 +149,73 @@
   function got(res) {
     var v = res && res.credential ? parse(res.credential) : null;
     if (!v) return;
-    var s = store();
+    var s = store(), p = passShape(get(PASS_KEY));
+    if (p && p.email !== v.email) dropPass();   /* a pass belongs to one account: another signing in never inherits it */
     try { if (s) s.setItem(KEY, JSON.stringify(v)); } catch (e) {}
     tell(v, true);          /* first, so every page's own state is current … */
     settle(v, '');          /* … before anything that was waiting carries on */
+    refreshPass();          /* a fresh sign-in: the labs script's pass, if it is due */
   }
+
+  /* ---------- the labs script's own pass (6 Oct 2026) ----------
+     Google's sign-in lasts an hour, and Google renews it without a click only sometimes; until it does, nothing could be
+     sent, and a pupil "signed in" for days found their work stuck in the browser. So while Google's sign-in is fresh, a
+     page that names the labs script (passFrom) asks it for a pass of its own: this pupil's email and name, stamped with a
+     secret only the script holds, good for 30 days. Requests carry it beside Google's (creds), and the script takes it
+     for this pupil's own saving and own practice only: never a reflection, a test or the teacher page, and never to make
+     a new pass. It is asked for again each day while Google's sign-in is fresh, it is used only for the account it was
+     made for, and signing out removes it. This file only keeps it; the script decides what it opens. */
+  function passShape(v) {
+    if (!v || typeof v !== 'object' || typeof v.pass !== 'string' || !v.pass ||
+        typeof v.email !== 'string' || !v.email || !isFinite(+v.exp)) return null;
+    return { pass: v.pass, email: v.email, exp: +v.exp };
+  }
+  /* the pass of whoever is signed in on this browser, while it has more than a minute left; else null */
+  function pass() {
+    var w = who(), p = passShape(get(PASS_KEY));
+    return (w && p && p.email === w.email && p.exp > Date.now() + MARGIN) ? p : null;
+  }
+  /* the pass kept here goes; with `which`, only if it is still that pass: another tab may have made a new one meanwhile */
+  function dropPass(which) {
+    var s = store(); if (!s) return;
+    if (which) { var p = passShape(get(PASS_KEY)); if (!p || p.pass !== which) return; }
+    try { s.removeItem(PASS_KEY); } catch (e) {}
+  }
+  function creds() {
+    var v = live(), p = pass();
+    if (!v && !p) return null;
+    return { token: v ? v.token : '', pass: p ? p.pass : '', email: v ? v.email : p.email };
+  }
+  /* asked for only with Google's own fresh sign-in (the script makes no pass from a pass): when there is none, it is
+     somebody else's, or it is a day old. One question at a time; an answer for somebody who has gone is not kept. */
+  function refreshPass() {
+    var v = live();
+    if (!passUrl || !v || typeof global.fetch !== 'function') return;
+    var p = passShape(get(PASS_KEY));
+    if (p && p.email === v.email && p.exp - Date.now() > PASS_KEEP) return;
+    if (passAsking === v.email) return;
+    passAsking = v.email;
+    var done = function () { if (passAsking === v.email) passAsking = ''; };
+    try {
+      global.fetch(passUrl, { method: 'POST', mode: 'cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                              body: JSON.stringify({ action: 'pass', token: v.token }) })
+        .then(function (r) { return r && r.ok ? r.json() : null; })
+        .then(function (j) {
+          done();
+          var w = who(), s = store();
+          if (!j || j.ok !== true || typeof j.pass !== 'string' || !j.pass || !isFinite(+j.exp) || !w || w.email !== v.email || !s) return;
+          try { s.setItem(PASS_KEY, JSON.stringify({ pass: j.pass, email: v.email, exp: +j.exp })); } catch (e) {}
+        })
+        .catch(done);
+    } catch (e) { done(); }
+  }
+  /* a page names the labs script it saves to: the pass is asked for now if it is due, and after every fresh sign-in */
+  function passFrom(url) { if (url) passUrl = String(url); refreshPass(); }
 
   /* ---------- renewing ---------- */
   function settle(v, why) {
     clearTimeout(waitTimer);
-    var w = waiting; waiting = null;
+    var w = waiting; waiting = null; waitingFor = '';
     (w || []).forEach(function (fn) { try { fn(v, why); } catch (e) {} });
   }
   /* done(who) with a token good for at least `within` ms (a minute unless told otherwise), or
@@ -156,6 +228,7 @@
     if (waiting) { if (done) waiting.push(done); return; }
     waiting = done ? [done] : [];
     var hint = have ? have.email : '';
+    waitingFor = hint;
     loaded(function (ok) {
       if (!waiting) return;                                /* settled meanwhile, from another tab */
       if (!ok || !cid) { settle(null, 'unavailable'); return; }
@@ -180,6 +253,7 @@
     var s = store();
     if (s) {
       try { s.removeItem(KEY); } catch (e) {}
+      try { s.removeItem(PASS_KEY); } catch (e) {}
       THEIRS.forEach(function (k) { try { s.removeItem(k); } catch (e) {} });
     }
     try { if (gis()) { google.accounts.id.disableAutoSelect(); if (cid) init(''); } } catch (e) {}
@@ -188,5 +262,6 @@
   }
 
   global.SignIn = { KEY: KEY, who: who, live: live, fresh: fresh, setUp: setUp, loaded: loaded,
-                    button: button, renew: renew, out: out, on: on };
+                    button: button, renew: renew, out: out, on: on,
+                    PASS_KEY: PASS_KEY, pass: pass, creds: creds, dropPass: dropPass, passFrom: passFrom };
 })(window);

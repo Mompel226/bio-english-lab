@@ -630,13 +630,17 @@
 
   /* ============================================================
      order — put the steps in the order an examiner reads them. ↑ ↓ buttons (keyboard too).
-     item.steps in the right order.
+     item.steps in the right order; item.orders, other right orders as lists of step indexes (optional, as on build:
+     7 Oct 2026, Daniel: "when a different order is possible, but still correct, that is still accepted").
      ============================================================ */
   function order(item, ctx) {
     var sh = shell(item);
     var list = h('ol', 'olist');
     var right = item.steps.map(function (_, i) { return i; });
+    var rights = [right].concat(item.orders || []);
+    function isRight(o) { var s = o.join(); return rights.some(function (r) { return r.join() === s; }); }
     var cur = mixed(item.steps.length, item.id, right);
+    for (var tries = 0; tries < 6 && isRight(cur); tries++) cur = mixed(item.steps.length, item.id + ':' + tries, right);   /* never start on a right order */
     var locked = false;
     function draw() {
       list.innerHTML = '';
@@ -657,7 +661,7 @@
     sh.body.appendChild(list);
     foot(sh.card, item, ctx, {
       wholeAnswer: true,
-      check: function () { var ok = cur.join() === right.join(); list.classList.add(ok ? 'is-right' : 'is-wrong'); return { ok: ok }; },
+      check: function () { var ok = isRight(cur); list.classList.add(ok ? 'is-right' : 'is-wrong'); return { ok: ok }; },
       clear: function () { list.classList.remove('is-right', 'is-wrong'); },
       lock: function (b) { locked = b; draw(); },
       showAnswer: function () { cur = right.slice(); locked = true; draw(); list.classList.add('is-right'); }
@@ -668,12 +672,20 @@
   /* ============================================================
      gap — type the keyword into the sentence. Each gap is its own answer.
      item.text: "Water moves by {{osmosis}} through a {{partially permeable|selectively permeable}} membrane."
+     item.anyOrder (optional): groups of gap indexes, from 0, whose words are a list and may come in any order.
      ============================================================ */
   function parseGaps(text) {
     var parts = [], re = /\{\{([^}]+)\}\}/g, last = 0, m;
     while ((m = re.exec(text))) { parts.push({ s: text.slice(last, m.index) }); parts.push({ acc: m[1].split('|').map(function (x) { return x.trim(); }) }); last = re.lastIndex; }
     parts.push({ s: text.slice(last) });
     return parts;
+  }
+  /* every order of a few items (a list group of 2–4 gaps) */
+  function perms(a) {
+    if (a.length < 2) return [a.slice()];
+    var out = [];
+    a.forEach(function (x, i) { perms(a.slice(0, i).concat(a.slice(i + 1))).forEach(function (p) { out.push([x].concat(p)); }); });
+    return out;
   }
   function gap(item, ctx) {
     var sh = shell(item);
@@ -705,13 +717,27 @@
       focus: function () { var w = gaps.filter(function (g) { return g.el.classList.contains('is-wrong'); })[0] || gaps[0]; if (w) w.el.focus(); },
       check: function () {
         if (gaps.some(function (g) { return !g.el.value.trim(); })) return null;
-        var wrong = 0, near = [];
-        gaps.forEach(function (g) {
-          var r = T.match(g.el.value, g.acc);
+        var wrong = 0, near = [], accOf = gaps.map(function (g) { return g.acc; }), twice = {};
+        /* Gaps listed together in item.anyOrder are the items of a list, and may be typed in any order (7 Oct 2026,
+           Daniel: "when a different order is possible, but still correct, that is still accepted"): each group's words
+           are matched to its gaps' accepted words the way that marks the most of them right. */
+        (item.anyOrder || []).forEach(function (grp) {
+          var best = grp, most = -1;
+          perms(grp).forEach(function (pm) {
+            var n = 0; grp.forEach(function (gi, k) { if (T.match(gaps[gi].el.value, gaps[pm[k]].acc).ok) n++; });
+            if (n > most) { most = n; best = pm; }
+          });
+          grp.forEach(function (gi, k) { accOf[gi] = gaps[best[k]].acc; });
+          /* a list names each thing once: the same word twice in one group scores once ("survive and survive") */
+          var seen = {};
+          grp.forEach(function (gi) { var w = T.norm(gaps[gi].el.value); if (seen[w]) twice[gi] = true; seen[w] = true; });
+        });
+        gaps.forEach(function (g, i) {
+          var acc = accOf[i], r = twice[i] ? { ok: false } : T.match(g.el.value, acc);
           g.el.classList.add(r.ok ? 'is-right' : 'is-wrong');
           if (!r.ok) wrong++;
-          else if (r.near) near.push('“' + T.esc(g.el.value.trim()) + '” is accepted, but check the spelling: <b>' + T.esc(g.acc[0]) + '</b>.');
-          else { var cn = T.caseNote(g.el.value, g.acc); if (cn) near.push(cn); }
+          else if (r.near) near.push('“' + T.esc(g.el.value.trim()) + '” is accepted, but check the spelling: <b>' + T.esc(acc[0]) + '</b>.');
+          else { var cn = T.caseNote(g.el.value, acc); if (cn) near.push(cn); }
         });
         return { ok: !wrong, say: wrong ? '✗ ' + (gaps.length - wrong) + ' of ' + gaps.length + ' right' : '✓ Correct', whyHTML: wrong ? '' : near.join('<br>') + (near.length && item.why ? '<br>' : '') + (item.why ? T.tags(item.why) : '') };
       },

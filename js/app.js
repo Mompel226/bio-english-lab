@@ -133,9 +133,9 @@
 
   /* ---------- small helpers ---------- */
   function h(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
-  function toast(msg) {
+  function toast(msg, ms) {
     var t = document.getElementById('toast'); t.textContent = msg; t.hidden = false;
-    clearTimeout(toast.t); toast.t = setTimeout(function () { t.hidden = true; }, 4200);
+    clearTimeout(toast.t); toast.t = setTimeout(function () { t.hidden = true; }, ms || 4200);
   }
   function go(hash) { if (location.hash === hash) route(); else location.hash = hash; }
   function unitOf(setId) { var m = META.sets[setId]; return m && META.units[m.unit]; }
@@ -786,26 +786,32 @@
     var btn = document.getElementById('signinBtn'), card = document.getElementById('whoCard');
     if (!SI || !CID) { btn.hidden = true; card.hidden = true; return; }
     if (me) {
-      btn.hidden = true; card.hidden = false;
-      card.innerHTML = '<span>Signed in as <b>' + T.esc((me.name || me.email).split(' ')[0]) + '</b></span><span class="who__sync" id="syncState">' + T.esc(syncText()) + '</span>' +
+      card.hidden = false;
+      card.innerHTML = '<span>Signed in as <b>' + T.esc((me.name || me.email).split(' ')[0]) + '</b></span><span class="' + syncClass() + '" id="syncState">' + T.esc(syncText()) + '</span>' +
         (server && server.teacher && server.teacherPage ? '<a class="who__t" href="' + T.esc(server.teacherPage) + '" target="_blank" rel="noopener">Teacher page</a>' : '');
       var out = h('button', 'who__out', 'Sign out'); out.type = 'button';
       out.addEventListener('click', function () {
         /* send what is still waiting while this account's sign-in works: once signed out, it cannot be sent */
-        if (Object.keys(pending).length && SI.live()) flush();
+        if (Object.keys(pending).length && sendCreds()) flush();
         SI.out();
       });
       card.appendChild(out);
+      /* the sign-in has expired and Google would not renew it without a click: its button stands beside the line that
+         says so, and one press sends everything waiting (SI.on below; 6 Oct 2026) */
+      if (syncState === 'stale') googleButton(btn); else { btn.hidden = true; btn.innerHTML = ''; }
     } else {
-      card.hidden = true; btn.hidden = false; btn.innerHTML = '';
-      SI.loaded(function (ok) {
-        if (!ok || me) return;
-        /* on a phone, Google's small round button: the full one would push the site's name onto two lines */
-        var small = window.matchMedia && matchMedia('(max-width: 560px)').matches;
-        SI.button(btn, CID, small ? { type: 'icon', theme: 'filled_black', size: 'large', shape: 'circle', locale: 'en-GB' }
-                                  : { theme: 'filled_black', size: 'medium', text: 'signin_with', shape: 'pill', locale: 'en-GB' });
-      }, 10000);
+      card.hidden = true; googleButton(btn);
     }
+  }
+  function googleButton(btn) {
+    btn.hidden = false; btn.innerHTML = '';
+    SI.loaded(function (ok) {
+      if (!ok || btn.hidden || (me && syncState !== 'stale')) return;
+      /* on a phone, Google's small round button: the full one would push the site's name onto two lines */
+      var small = window.matchMedia && matchMedia('(max-width: 560px)').matches;
+      SI.button(btn, CID, small ? { type: 'icon', theme: 'filled_black', size: 'large', shape: 'circle', locale: 'en-GB' }
+                                : { theme: 'filled_black', size: 'medium', text: 'signin_with', shape: 'pill', locale: 'en-GB' });
+    }, 10000);
   }
   /* ---------- a shared computer ----------
      This browser's work belongs to the account it was last saved for. Another account signing in must not
@@ -820,9 +826,22 @@
   function unsentHere() { try { return !!localStorage.getItem(UNSENT_KEY); } catch (e) { return true; } }
   function hasWork() { return Object.keys(P.sets).some(function (sid) { var r = P.sets[sid]; return r && ((r.items && Object.keys(r.items).length) || goOf(r) > 1); }); }
   function clearHere() { P = { sets: {}, year: P.year }; save(); pending = {}; markUnsent(false); }
+  /* Whose work THIS page holds in memory: the stored owner it was loaded with, then each pupil it is claimed for; a
+     sign-out never clears it. Two tabs of the site share the stored owner, so another tab that has already claimed this
+     browser for the next pupil hid the last pupil's work still in this page's memory, and it was sent with the next
+     pupil's sign-in (the sign-in audit, 7 Oct 2026). */
+  var pageOwner = '';
+  try { pageOwner = localStorage.getItem(OWNER_KEY) || ''; } catch (e) {}
   function claimFor(email) {
     var was = '';
     try { was = localStorage.getItem(OWNER_KEY) || ''; } catch (e) {}
+    if (email && pageOwner && pageOwner !== email && was === email) {
+      /* another tab has claimed this browser for them already, and keeps their copy here: this page takes that copy, and
+         lets the last pupil's go (it is in their record, or waits in their own tab) */
+      P = load(); pending = {}; pageOwner = email;
+      return;
+    }
+    if (email) pageOwner = email;
     if (was && email && was !== email && hasWork()) {
       var unsent = unsentHere() || Object.keys(pending).length > 0;
       clearHere();
@@ -831,7 +850,20 @@
     }
     try { if (email) localStorage.setItem(OWNER_KEY, email); } catch (e) {}
   }
-  if (SI) SI.on(function (v) { var was = me && me.email; me = v; paintWho(); if (v && v.email !== was) { server = null; record = null; notListedSaid = false; claimFor(v.email); fetchMine(); fetchRecord(); } if (!v) { server = null; record = null; route(); } });
+  /* The sign-in changed, here or in another tab of the site. Another account, or nobody, starts afresh. The same pupil with a
+     new sign-in (Google's button pressed again, a renewal, the hub in another tab) sends what could not be sent while the
+     old one had expired: the records first, then everything this browser holds (fetchMine). Until 6 Oct 2026 only another
+     account did, so a pupil whose sign-in had expired had to sign out and in again before their teacher had their answers. */
+  if (SI) SI.on(function (v) {
+    var was = me && me.email, other = !v || v.email !== was;
+    var again = !other && SI.fresh(v) && (syncState === 'stale' || !server || Object.keys(pending).length > 0 || unsentHere());
+    me = v;
+    if (other || (again && syncState === 'stale')) syncState = 'idle';
+    paintWho();
+    if (v && other) { server = null; record = null; notListedSaid = false; claimFor(v.email); fetchMine(); fetchRecord(); }
+    else if (again) { fetchMine(); if (!record) fetchRecord(); }
+    if (!v) { server = null; record = null; route(); }
+  });
 
   /* ---------- the student's own dashboard (the reflection system's record page) ----------
      Asked, never assumed: the labs' script says whether this student has reflected yet. */
@@ -880,6 +912,9 @@
 
   /* ---------- the teacher's spreadsheet ---------- */
   function syncOn() { return !!(CFG.submitUrl && SI); }
+  /* What a call to the records carries: Google's sign-in while it is fresh, and the labs script's own pass (6 Oct 2026,
+     js/signin.js), which goes on after Google's hour. Only ever for the pupil signed in here; null when there is neither. */
+  function sendCreds() { var c = SI && SI.creds ? SI.creds() : null; return (c && me && c.email === me.email) ? c : null; }
   function post(body, leaving) {
     var opts = { method: 'POST', mode: 'cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) };
     if (leaving) opts.keepalive = true;          /* the page is going: let the request outlive it */
@@ -895,14 +930,31 @@
   var pending = {}, syncTimer = null;
   /* what the sign-in card says about recording: a student must be able to see that their work
      reaches their teacher — there is no hand-in button, saving is automatic */
-  var syncState = 'idle';   /* idle · saving · saved · failed · off */
+  var syncState = 'idle';   /* idle · saving · saved · failed · stale (the sign-in has expired: nothing can be sent) */
   function syncText() {
     if (!syncOn()) return 'progress kept in this browser';
-    if (!server) return 'recording…';
+    if (syncState === 'stale') return 'not sent yet: sign in again';
+    if (!server) return syncState === 'failed' ? 'could not reach your teacher\u2019s records: kept in this browser' : 'recording…';
     if (!server.onList) return 'not on a class list yet — kept in this browser';
-    return syncState === 'saving' ? 'saving…' : syncState === 'failed' ? 'could not save — will retry' : 'saved for your teacher \u2713';
+    if (syncState === 'saving') return 'saving…';
+    if (syncState === 'failed') return 'could not save — will retry';
+    /* "saved" only when the records have everything done here: answers waiting for their save say so (6 Oct 2026) */
+    if (Object.keys(pending).length) return 'saving…';
+    return syncState === 'saved' ? 'saved for your teacher \u2713' : 'saves as you go';
   }
-  function setSync(st) { syncState = st; var el = document.getElementById('syncState'); if (el) el.textContent = syncText(); }
+  function syncClass() { return 'who__sync' + (syncState === 'stale' ? ' is-no' : ''); }
+  function paintSync() { var el = document.getElementById('syncState'); if (el) { el.textContent = syncText(); el.className = syncClass(); } }
+  /* into or out of "stale" draws the card again, because Google's button comes or goes with it */
+  function setSync(st) { var flip = (syncState === 'stale') !== (st === 'stale'); syncState = st; if (flip) paintWho(); else paintSync(); }
+  /* The sign-in has expired (Google's lasts an hour) and Google would not give a new one without a click. Nothing can be
+     sent: the card says so, Google's button stands beside it (paintWho), and a message says it once, because the card is
+     small. One press sends everything waiting (SI.on). Until 6 Oct 2026 the card went on saying "saved for your teacher". */
+  function spent() {
+    if (!me || !syncOn()) return;
+    var first = syncState !== 'stale';
+    setSync('stale');
+    if (first) toast('Your sign-in has expired, so your teacher does not have your latest answers. Sign in again with your school Google account (at the top of the page) and your answers are sent. Nothing is lost.', 9000);
+  }
   /* Two minutes after the last answer, one save carries everything since (`now` sends at once:
      a set finished, a sign-in, the page being left). Forty pupils on one script is comfortable
      at that pace; a save the records could not take goes again a minute later. */
@@ -914,7 +966,7 @@
   function queueSync(sid, now) {
     answeredGen++; markUnsent(true);           /* until a save the records take: see flush */
     if (!syncOn() || !me || notListed()) return;
-    pending[sid] = true;
+    pending[sid] = true; paintSync();
     if (now) { clearTimeout(syncTimer); syncTimer = null; flush(); return; }
     if (!syncTimer) syncTimer = setTimeout(function () { syncTimer = null; flush(); }, SAVE_AFTER);
   }
@@ -922,8 +974,8 @@
     var ids = Object.keys(pending); if (!ids.length) return;
     /* signed out: it waits for this browser's owner to sign in again (a new sign-in is never asked for here) */
     if (!me || notListed()) return;
-    var live = SI.live(), gen = answeredGen;
-    if (!live) { SI.renew(CID, function (v) { if (v) flush(); }); return; }
+    var c = sendCreds(), gen = answeredGen;
+    if (!c) { SI.renew(CID, function (v) { if (v && sendCreds()) flush(); else spent(); }); return; }   /* never round again on nothing */
     pending = {};
     setSync('saving');
     var sets = {};
@@ -933,26 +985,42 @@
       sets[sid] = { done: t.done, first: t.first, total: t.total, snap: snap(sid), v: META.sets[sid].v,
                     go: R.go, snap1: lettersOf(sid, R.first), best: lettersOf(sid, R.best) };
     });
-    post({ action: 'english.save', token: live.token, sets: sets, at: new Date().toISOString() }, leaving)
+    post({ action: 'english.save', token: c.token, pass: c.pass, sets: sets, at: new Date().toISOString() }, leaving)
       .then(function (j) {
         if (j && !j.ok && /^not on your teacher/.test(String(j.why || ''))) {
           server = server || {}; server.onList = false; setSync('failed'); paintWho();
           if (!notListedSaid) { notListedSaid = true; toast('Your progress was not recorded: ' + j.why); }
           return;
         }
-        if (!j || !j.ok) { ids.forEach(function (s) { pending[s] = true; }); setSync('failed'); clearTimeout(syncTimer); syncTimer = setTimeout(function () { syncTimer = null; flush(); }, 60000); if (j && j.why && j.why !== 'not signed in') toast('Your progress was not recorded: ' + j.why); }
+        if (!j || !j.ok) {
+          ids.forEach(function (s) { pending[s] = true; });
+          /* the records turned the sign-in away (its hour is up by Google's clock): sign in again. Tried again in a minute too,
+             because Google's check can also fail for a moment */
+          /* a refused pass (🔑) is dropped; then "sign in again" unless something good is left to send with */
+          if (j && j.why === 'not signed in') { if (c.pass && SI.dropPass) SI.dropPass(c.pass); if (sendCreds()) setSync('failed'); else spent(); } else setSync('failed');
+          clearTimeout(syncTimer); syncTimer = setTimeout(function () { syncTimer = null; flush(); }, 60000);
+          if (j && j.why && j.why !== 'not signed in') toast('Your progress was not recorded: ' + j.why);
+        }
         else { setSync('saved'); if (!Object.keys(pending).length && gen === answeredGen) markUnsent(false); }
       })
-      .catch(function () { ids.forEach(function (s) { pending[s] = true; }); setSync('failed'); });
+      .catch(function () {
+        ids.forEach(function (s) { pending[s] = true; }); setSync('failed');
+        clearTimeout(syncTimer); syncTimer = setTimeout(function () { syncTimer = null; flush(); }, 60000);   /* "will retry" is true */
+      });
   }
   addEventListener('pagehide', function () { if (Object.keys(pending).length) flush(true); });
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && Object.keys(pending).length) flush(true); });
+  var mineAsking = '';     /* the account a records call is out for: one call at a time, and an answer for another account is dropped */
   function fetchMine() {
     if (!syncOn() || !me) return;
-    var live = SI.live();
-    if (!live) { SI.renew(CID, function (v) { if (v) fetchMine(); }); return; }
-    post({ action: 'english.mine', token: live.token }).then(function (j) {
-      if (!j || !j.ok) { setSync('failed'); return; }
+    var c = sendCreds();
+    if (!c) { SI.renew(CID, function (v) { if (v && sendCreds()) fetchMine(); else spent(); }); return; }
+    if (mineAsking === c.email) return;
+    var asked = mineAsking = c.email;
+    post({ action: 'english.mine', token: c.token, pass: c.pass }).then(function (j) {
+      if (mineAsking === asked) mineAsking = '';
+      if (!me || me.email !== asked) return;
+      if (!j || !j.ok) { if (j && j.why === 'not signed in') { if (c.pass && SI.dropPass) SI.dropPass(c.pass); if (sendCreds()) setSync('failed'); else spent(); } else setSync('failed'); return; }
       server = j;
       setSync(syncState === 'saving' ? 'saving' : 'saved');
       paintWho();
@@ -993,7 +1061,7 @@
       var toSend = Object.keys(P.sets).filter(function (sid) { var r = P.sets[sid]; return META.sets[sid] && r && ((r.items && Object.keys(r.items).length) || goOf(r) > 1); });
       toSend.forEach(function (sid, i) { queueSync(sid, i === toSend.length - 1); });
       route();
-    }).catch(function () {});
+    }).catch(function () { if (mineAsking === asked) mineAsking = ''; if (me && me.email === asked) setSync('failed'); });
   }
   function paintHomework(host) {
     host.innerHTML = '';
@@ -1051,5 +1119,6 @@
   addEventListener('hashchange', route);
   paintWho();
   route();
+  if (SI && SI.passFrom && syncOn()) SI.passFrom(CFG.submitUrl);   /* the labs script's pass, when it is due */
   if (me) { claimFor(me.email); fetchMine(); fetchRecord(); }
 })();

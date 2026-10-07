@@ -51,10 +51,12 @@
       });
       check(card);
     },
-    build: function (item, card, good) {
+    build: function (item, card, good, alt) {
       var tiles = $$(card, '.tile');
       var seq = good ? item.chunks.slice() : item.chunks.slice().reverse();
+      if (!good && rightOrder(item, item.chunks.map(function (_, i) { return i; }).reverse())) seq = item.chunks.slice(0, -1);   /* reversed is right too: leave a piece out */
       if (!good && item.extra && item.extra.length) seq = item.chunks.concat([item.extra[0]]);
+      if (alt) seq = alt.map(function (i) { return item.chunks[i]; });
       seq.forEach(function (t) { var b = tiles.filter(function (x) { return txt(x) === plain(t); })[0]; b.click(); });
       check(card);
     },
@@ -77,10 +79,11 @@
       item.chunks.forEach(function (c, i) { if (good ? c.x : !c.x) cuts[i].click(); });
       check(card);
     },
-    order: function (item, card, good) {
+    order: function (item, card, good, alt) {
       /* bubble each row into place with the ↑ buttons */
       var target = item.steps.map(plain);
-      if (!good) target = target.slice().reverse();
+      if (!good) target = wrongOrder(item).map(function (i) { return plain(item.steps[i]); });
+      if (alt) target = alt.map(function (i) { return plain(item.steps[i]); });
       for (var pass = 0; pass < 40; pass++) {
         var rows = $$(card, '.orow');
         var cur = rows.map(function (r) { return txt($(r, '.orow__t')); });
@@ -92,8 +95,9 @@
       }
       check(card);
     },
-    gap: function (item, card, good) {
+    gap: function (item, card, good, alt) {
       var acc = []; item.text.replace(/\{\{([^}]+)\}\}/g, function (_, a) { acc.push(a.split('|')[0].trim()); return ''; });
+      if (alt) acc = alt.map(function (i) { return acc[i]; });          /* a list group typed in another order */
       $$(card, 'input.gap').forEach(function (inp, i) { setInput(inp, good ? acc[i] : 'zzqx'); });
       check(card);
     },
@@ -140,7 +144,23 @@
     }
   };
 
-  var n = 0, fails = [], log = [];
+  /* other right orders (7 Oct 2026): build and order list them in item.orders; gap groups in item.anyOrder */
+  function rightOrder(item, o) { var s = o.join(); return (item.orders || []).some(function (r) { return r.join() === s; }) || o.every(function (x, i) { return x === i; }); }
+  function wrongOrder(item) {
+    var n = item.steps.length, idx = item.steps.map(function (_, i) { return i; });
+    var tries = [idx.slice().reverse(), [1, 0].concat(idx.slice(2)), idx.slice(1).concat([0])];
+    for (var t = 0; t < tries.length; t++) if (!rightOrder(item, tries[t])) return tries[t];
+    return idx.slice().reverse();
+  }
+  function alternatives(item) {
+    if ((item.type === 'build' || item.type === 'order') && item.orders) return item.orders;
+    if (item.type === 'gap' && item.anyOrder) {
+      var n = (item.text.match(/\{\{[^}]+\}\}/g) || []).length;
+      return item.anyOrder.map(function (g) { var a = []; for (var i = 0; i < n; i++) a.push(i); var r = g.slice().reverse(); g.forEach(function (j, k) { a[j] = r[k]; }); return a; });
+    }
+    return [];
+  }
+  var n = 0, nAlt = 0, fails = [], log = [];
   Object.keys(AL.sets).forEach(function (sid) {
     var set = open(sid);
     set.items.forEach(function (item) {
@@ -159,11 +179,27 @@
         var wrongOk = res.length && res[res.length - 1].ok;
         if (wrongOk) fails.push(where + ': WRONG answer accepted — "' + v2 + '"');
         if (!res.length && !/Not yet|right|examiner|Not the/.test(v2)) fails.push(where + ': wrong answer gave no verdict — "' + v2 + '"');
+        /* a list group filled with one word twice must not score (7 Oct 2026: "survive and survive") */
+        if (item.type === 'gap' && item.anyOrder) item.anyOrder.forEach(function (g) {
+          var res4 = [], card4 = draw(item, res4), acc = [];
+          item.text.replace(/\{\{([^}]+)\}\}/g, function (_, a) { acc.push(a.split('|')[0].trim()); return ''; });
+          if (T.norm(acc[g[0]]) === T.norm(acc[g[1]])) return;
+          $$(card4, 'input.gap').forEach(function (inp, i) { setInput(inp, g.indexOf(i) >= 0 ? acc[g[0]] : acc[i]); });
+          check(card4);
+          if (res4.length && res4[res4.length - 1].ok) fails.push(where + ': one word typed twice in a list group was accepted');
+        });
+        /* every other right order must be accepted too */
+        alternatives(item).forEach(function (alt) {
+          var res3 = [], card3 = draw(item, res3);
+          ANSWER[item.type](item, card3, true, alt);
+          if (!(res3.length && res3[res3.length - 1].ok)) fails.push(where + ': another right order NOT accepted — ' + JSON.stringify(alt) + ' "' + verdict(card3) + '"');
+          nAlt++;
+        });
       } catch (e) { fails.push(where + ': ' + (e && e.message || e)); }
     });
   });
   host.innerHTML = '';
   window.SELFTEST = { ok: !fails.length, n: n, fails: fails };
-  document.getElementById('out').textContent = (fails.length ? '✗ ' + fails.length + ' of ' + n + ' questions fail:\n  ' + fails.join('\n  ') : '✓ all ' + n + ' questions mark right answers right and wrong answers wrong');
+  document.getElementById('out').textContent = (fails.length ? '✗ ' + fails.length + ' of ' + n + ' questions fail:\n  ' + fails.join('\n  ') : '✓ all ' + n + ' questions mark right answers right and wrong answers wrong' + (nAlt ? ', and ' + nAlt + ' other right orders right' : ''));
   document.title = fails.length ? 'SELFTEST FAIL' : 'SELFTEST OK';
 })();
