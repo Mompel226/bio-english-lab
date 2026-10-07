@@ -122,7 +122,7 @@ write "The mark scheme ignores “water concentration”", not "I water concentr
 | `fix` | `text` with `{weak}` words, `flaws: [{ fix, opts:[…fix among them], why }]` in order; optional `find: true` makes the student find the weak words first (no underlines) | each word |
 | `trim` | `chunks: [{ t }, { t, x:true, why }]` — `x` = scores nothing, strike it | whole answer |
 | `order` | `steps` in the right order (3–6), optional `orders` (other right orders as index lists, as on `build`) | whole order |
-| `gap` | `text` with `{{answer|also accepted}}` gaps, optional `anyOrder` (groups of 2–4 gap indexes, from 0, whose words are a list and may come in any order; one word typed twice in a group scores once) | each gap (spelling slips forgiven, but never one that makes another biology word) |
+| `gap` | `text` with `{{answer|also accepted}}` gaps, optional `anyOrder` (groups of 2–4 gap indexes, from 0, whose words are a list and may come in any order; one word typed twice in a group scores once; each gap of a group lists the words of its own point only, or two synonyms of one point would score both: the build refuses a word accepted in two gaps of one group) | each gap (spelling slips forgiven, but never one that makes another biology word) |
 | `sort` | `bins: […]`, `items: [{ t, b: binIndex }]` | whole answer |
 | `mark` | `answer` (a realistic weak student answer), `scheme: [{ t, got:true/false, why }]` | whole answer |
 | `exam` | `ideas: [{ t, ok:true }, { t, ok:false, why }]`, `frames` (one sentence per scoring idea, in order, each with a `{{keyword}}` gap), optional `anyOrder:true` | step by step: think → order → write |
