@@ -3,12 +3,38 @@
 Everything a student sees is authored in `../bio-english-lab-source/` (never published) and built by
 `node tools/build.mjs`, which refuses to finish if a question is broken. Then
 `node tools/selftest-run.mjs` answers every question right and wrong in a real browser and fails
-if either marking is wrong. Both must pass before anything is published.
+if either marking is wrong. Both must pass before anything is published. A change to how homework is counted on the
+page (`hwDoneOf`, `hwStateOf`) also runs `node tools/homework-best.mjs`.
+
+**Model answers link cause and effect** (Daniel, 8 Oct 2026). In an explain set, a model line that joins a cause to its
+effect says it with a tagged link word ("…acid, {l:so} the pH is low", "…{l:because} memory cells are produced", ", {l:which}
+…"), never a colon, never "because …, so …"; every line a full sentence; a colon after a label stays. The rule and its
+checks: `docs/QUESTION-STANDARD.md` §7 (in Biology Hub/docs).
+
+**The accommodation** (8 Oct 2026; atlas couplings C106). A pupil the teacher gives it sees, after a second, DIFFERENT wrong
+check of a card (`api.sig`: the same answer checked again is no try), the card's own explanation of what they got wrong
+(`res.help` in `js/engine.js`), and may choose keyword meanings in Korean or Chinese (한국어 · 中文: `js/data/ko.js` and
+`js/data/zh.js`, written by the build from keywords.master.js `ko_def`, and `zh` + `zh_def`), shown only after an answer:
+a Korean or Chinese definition often names the keyword. So every `why`, flaw `why`, chunk `why`, point
+`why`, idea `why` and keyword definition may be read by the weakest readers: write them to the same standard as a question.
+A keyword card's help is its definition with the answer hidden in any form (`kwMeaning`): the keyword and its plurals
+(atria, teeth), an abbreviation spelled out (HIV), and its words with their other forms (denatured, clot, linked,
+pulling). The common word of a longer keyword stays ("energy" in "kinetic energy") unless every word is common and it
+would point to the right option. On a typed card every accepted form is an answer and goes too; on a choose card an
+accepted form stays, except an abbreviation or its full name. So a definition must still say what the word means with
+all that hidden, and an `accept` list should hold other names of the answer, never a bracket's context ("plant" for
+Stem). A card that carries its own Korean term (`ko` in a topic master) must use the keyword list's term for the same
+keyword: the build refuses a difference. An etymology card has no help: its story often states the meaning, and its `near` notes explain each wrong option
+to everyone.
+Proof: `node tools/accommodation.mjs` (one check answers every keyword card wrong twice and reads every help with its own
+detector: the marker on every run of visible words, every word of an answer, the base of every visible word).
 
 **Changing a question pupils have answered** (7 Oct 2026). Every word of a question is in its fingerprint `h` (answers
 are kept as `id@h`): a new `h` restarts that question on every pupil's browser and changes its set's `v`, so the
-spreadsheet starts that set's record again. A reword that still asks the same thing (only the options' words and `why`,
-or other right orders: `orders`, `anyOrder`) keeps the old `h`: first copy `../bio-english-lab-source/` (its
+spreadsheet starts that set's letters again (its best answered count is kept since 8 Oct 2026: the labs script's `x`,
+so homework and the teacher page never go backwards). A reword that still asks the same thing (only the options' words and `why`,
+other right orders: `orders`, `anyOrder`, or the words of the model answer with the same lines and marks, since 8 Oct 2026)
+keeps the old `h`: first copy `../bio-english-lab-source/` (its
 `topics/` and `methods.master.js`) to a scratch folder, then edit, then run
 `node tools/keep-records.mjs --was-masters <that folder>` (it reports) and again with `--write`; it writes
 `keep: { h, now }` after the question's id and proves it with a staging build. The build refuses a keep that no longer

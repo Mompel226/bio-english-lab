@@ -92,8 +92,15 @@
   function hwStateOf(sid) {
     var on = !!(server && server.homework && server.homework.some(function (hw) { return (hw.sets || []).indexOf(sid) >= 0; }));
     if (!on) return '';
-    var t = tallyBest(sid);
-    return (t.total && t.done >= t.total) ? 'done' : (t.done > 0 ? 'partly' : 'none');
+    var x = hwDoneOf(sid);
+    return (x.total && x.done >= x.total) ? 'done' : (x.done > 0 ? 'partly' : 'none');
+  }
+  /* What homework counts for a set: the larger of this browser's count and the spreadsheet's (8 Oct 2026: `most` is the
+     best of ANY version of the set, so a set rebuilt since never turns a finished homework red here while the teacher's
+     page says done). Every homework colour and count on the site reads this. */
+  function hwDoneOf(sid) {
+    var t = tallyBest(sid), srv = server && server.sets && server.sets[sid] ? Number(server.sets[sid].most) || 0 : 0;
+    return { done: Math.max(t.done, t.total ? Math.min(srv, t.total) : srv), total: t.total };
   }
   function hwPill(st) { return st ? '<span class="hwpill hwpill--' + st + '">Homework: ' + HW_WORDS[st] + '</span>' : ''; }
   var HW_KEY = '<p class="hw__key">Your homework sets are marked: <span class="hwdot hwdot--none"></span> red, not started; ' +
@@ -521,7 +528,8 @@
       var chip = !p ? '' : ' <button type="button" class="words__past words__past--' + (p.old ? 'old' : p.beyond ? 'beyond' : 'word') + '" aria-expanded="false">' +
         (p.old ? 'old syllabus \u00b7 until ' + T.esc(((META.past.st || {})[p.old] || {}).until || '') : p.beyond ? 'beyond 0610' : 'word not in 0610') + '</button>';
       g.appendChild(h('dt', 'words__t', T.esc(x.t) + (x.sup ? ' <span class="words__sup">Supplement</span>' : '') + chip + (x.ko && CFG.koreanGloss !== false ? ' <span class="words__ko" lang="ko">' + T.esc(x.ko) + '</span>' : '')));
-      g.appendChild(h('dd', 'words__d', T.esc(x.d) + (META.roots ? E.rootsHTML(x.id) : '') + (p ? '<span class="words__pnote' + (p.old ? '' : ' words__pnote--plain') + '" hidden>' + E.pastText(p) + '</span>' : '')));
+      g.appendChild(h('dd', 'words__d', T.esc(x.d) + '<span class="words__kodef kogloss" lang="ko" data-kid="' + T.esc(x.id) + '" hidden></span>' +
+        (META.roots ? E.rootsHTML(x.id) : '') + (p ? '<span class="words__pnote' + (p.old ? '' : ' words__pnote--plain') + '" hidden>' + E.pastText(p) + '</span>' : '')));
       dl.appendChild(g);
     });
     dl.addEventListener('click', function (e) {
@@ -530,6 +538,7 @@
       n.hidden = !n.hidden; b.setAttribute('aria-expanded', n.hidden ? 'false' : 'true');
     });
     w.appendChild(dl);
+    paintKo(dl);
     /* The sentence frames this topic teaches, gathered from its own questions: the shapes to
        revise before a test. The same sentences the cards use, one after another. */
     var FR = (META.frames || {})[uid] || [];
@@ -763,9 +772,55 @@
       if (next) { var nx = h('a', 'btn btn--go', 'Next set: ' + T.esc(META.sets[next].title) + ' →'); nx.href = '#/s/' + next; row.appendChild(nx); }
       var bk = h('a', 'btn', u ? 'Back to the topic' : 'Back to the front'); bk.href = u ? '#/u/' + u.id : '#/';
       row.appendChild(bk); if (again) row.appendChild(again);
+      /* Redo the ones you missed (Daniel, 8 Oct 2026): the questions of this round that were not right at the first try,
+         again, as practice. Nothing a redo does is kept: the record, the dots and the teacher's page stay as they are. */
+      var missed = missedNow();
+      if (missed.length) {
+        var rd = h('button', 'btn', 'Redo the ' + missed.length + ' you missed'); rd.type = 'button';
+        rd.addEventListener('click', function () { redo(missed); });
+        row.insertBefore(rd, row.firstChild);
+      }
       d.appendChild(row);
+      if (missed.length) d.appendChild(h('p', 'hint', 'Redo: practise again the ' + (missed.length === 1 ? 'question' : missed.length + ' questions') +
+        ' you did not get right the first time. A redo does not change your record.'));
       if (t.done < t.total) d.appendChild(h('p', 'hint', 'Questions still open are shown as empty circles above.'));
       return d;
+    }
+    /* the questions of this round answered, but not right at the first try (answers shown count as missed) */
+    function missedNow() {
+      return items.filter(function (it) { if (it.type === 'learn') return false; var s = r.items[key(it)]; return s && (s.ok || s.shown || s.t) && !s.first; });
+    }
+    /* the redo: the same cards, fresh, one after another; right first time is counted here and shown at the end, never saved */
+    function redo(list) {
+      var j = 0, firstRight = 0;
+      history.replaceState(null, '', '#/s/' + sid + '/' + (items.length + 1));
+      function step() {
+        stage.innerHTML = '';
+        prog.innerHTML = '<b>Redo</b> · question ' + Math.min(j + 1, list.length) + ' of ' + list.length + ' · practice: your record does not change';
+        dots.hidden = true;
+        if (j >= list.length) {
+          var e = h('div', 'done');
+          e.innerHTML = '<p class="eyebrow">' + T.esc(m.title) + ' · redo</p><h2>Redo finished.</h2>' +
+            '<div class="done__nums"><div>' + firstRight + '/' + list.length + '<span>right first time in this redo</span></div></div>';
+          var row2 = h('div', 'card__foot');
+          var more = missedRedo.length ? h('button', 'btn btn--go', 'Redo the ' + missedRedo.length + ' still missed') : null;
+          if (more) { more.type = 'button'; var again2 = missedRedo.slice(); more.addEventListener('click', function () { redo(again2); }); row2.appendChild(more); }
+          var back2 = h('button', 'btn', 'Back to the summary'); back2.type = 'button';
+          back2.addEventListener('click', function () { dots.hidden = false; show(items.length); });
+          row2.appendChild(back2);
+          e.appendChild(row2); stage.appendChild(e);
+          return;
+        }
+        var it = list[j], counted = false;
+        stage.appendChild(E.render(it, {
+          /* a card reports every check: its FIRST report says whether it was right at the first try */
+          onResult: function (res) { if (res.learn || counted) return; counted = true;
+            if (res.first) firstRight++; else missedRedo.push(it); },
+          onNext: function () { j++; step(); window.scrollTo({ top: 0 }); }
+        }));
+      }
+      var missedRedo = [];
+      step();
     }
     show(n);
   }
@@ -782,6 +837,59 @@
   var SI = window.SignIn || null, CID = CFG.googleClientId || '';
   var me = SI ? SI.who() : null;
   var server = null;     /* what the teacher's spreadsheet said about this student */
+
+  /* Accommodation (Daniel, 8 Oct 2026): a pupil the teacher gave it (the Students tab; english.mine says acc: 1, for this
+     pupil only) gets two kinds of help nobody else gets. The engine explains what they got wrong after their SECOND wrong
+     check of a card (AL_HELP.acc). And a choice of two languages, 한국어 or 中文 (Daniel: "most struggling students are
+     chinese"; the pupil chooses), shows the meaning of the keywords on the screen in that language (AL_HELP.lang): on the
+     Keywords pages and on a keyword card after it is answered (never before an answer: 142 Korean definitions name the
+     keyword the English prompt hides, and the Chinese ones as often; the audit, 8 Oct 2026). The meanings come from
+     js/data/ko.js and js/data/zh.js, which only these pupils fetch, each only when chosen. Off at first. The choice is kept
+     under the pupil's own address: the next pupil on the computer never inherits it, however they signed in. */
+  var LANG_PREF = 'bio-english-lab.lang', langAsked = {};
+  var LANGS = {
+    ko: { file: 'js/data/ko.js', g: 'AL_KO', tag: 'ko', name: '한국어', en: 'Korean', said: '한국어 뜻을 보여 줍니다. Korean meanings are on.' },
+    zh: { file: 'js/data/zh.js', g: 'AL_ZH', tag: 'zh-Hans', name: '中文', en: 'Chinese', said: '显示中文意思。Chinese meanings are on.' } };
+  function accOn() { return !!(me && server && server.ok && server.acc); }
+  function langPref() {
+    try {
+      var o = JSON.parse(localStorage.getItem(LANG_PREF) || 'null');
+      return o && me && o.who === String(me.email || '').toLowerCase() && LANGS[o.lang] ? o.lang : '';
+    } catch (e) { return ''; }
+  }
+  function setLangPref(l) {
+    try { if (l && me) localStorage.setItem(LANG_PREF, JSON.stringify({ who: String(me.email || '').toLowerCase(), lang: l })); else localStorage.removeItem(LANG_PREF); } catch (e) {}
+  }
+  window.AL_HELP = {
+    get acc() { return accOn(); },
+    get lang() { var l = accOn() ? langPref() : ''; return l && window[LANGS[l].g] ? l : ''; },
+    get ko() { return this.lang === 'ko'; } };
+  function paintKo(root) {          /* AL_KO_PAINT, the name the engine calls: it paints the chosen language, or none */
+    var l = window.AL_HELP.lang, M = l ? window[LANGS[l].g] || {} : {};
+    Array.prototype.forEach.call((root || document).querySelectorAll('.kogloss'), function (el) {
+      var t = l ? M[el.getAttribute('data-kid')] : '';
+      el.textContent = t || ''; el.hidden = !t;
+      if (t) el.lang = LANGS[l].tag;   /* a Korean computer draws Chinese characters in Chinese shapes */
+    });
+  }
+  window.AL_KO_PAINT = paintKo;
+  function loadLang(l) {
+    if (window[LANGS[l].g] || langAsked[l]) { paintKo(); return; }
+    langAsked[l] = true;
+    var sc = document.createElement('script');
+    sc.src = LANGS[l].file + '?v=' + encodeURIComponent((window.AL && window.AL.v) || '');
+    sc.onload = function () { paintKo(); };
+    sc.onerror = function () { langAsked[l] = false; };
+    document.head.appendChild(sc);
+  }
+  function accChanged() { var l = accOn() ? langPref() : ''; if (l) loadLang(l); else paintKo(); }
+  function markLangs(group) {
+    Array.prototype.forEach.call(group.querySelectorAll('.who__ko'), function (b) {
+      var l = b.getAttribute('data-lang'), on = langPref() === l;
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.setAttribute('aria-label', LANGS[l].name + ': ' + LANGS[l].en + ' meanings of the keywords, ' + (on ? 'on' : 'off'));
+    });
+  }
   function paintWho() {
     var btn = document.getElementById('signinBtn'), card = document.getElementById('whoCard');
     if (!SI || !CID) { btn.hidden = true; card.hidden = true; return; }
@@ -789,6 +897,23 @@
       card.hidden = false;
       card.innerHTML = '<span>Signed in as <b>' + T.esc((me.name || me.email).split(' ')[0]) + '</b></span><span class="' + syncClass() + '" id="syncState">' + T.esc(syncText()) + '</span>' +
         (server && server.teacher && server.teacherPage ? '<a class="who__t" href="' + T.esc(server.teacherPage) + '" target="_blank" rel="noopener">Teacher page</a>' : '');
+      if (accOn()) {
+        /* 한국어 · 中文: one press turns a language on, the same press again turns it off, the other one changes language */
+        var langs = h('span', 'who__langs'); langs.setAttribute('role', 'group'); langs.setAttribute('aria-label', 'Meanings of the keywords in your language');
+        Object.keys(LANGS).forEach(function (l) {
+          var b = h('button', 'who__ko', LANGS[l].name); b.type = 'button'; b.lang = LANGS[l].tag; b.setAttribute('data-lang', l);
+          b.addEventListener('click', function () {
+            var on = langPref() !== l;
+            setLangPref(on ? l : '');
+            markLangs(langs);
+            accChanged();
+            toast(on ? LANGS[l].said : LANGS[l].en + ' meanings are off.');
+          });
+          langs.appendChild(b);
+        });
+        markLangs(langs);
+        card.appendChild(langs);
+      }
       var out = h('button', 'who__out', 'Sign out'); out.type = 'button';
       out.addEventListener('click', function () {
         /* send what is still waiting while this account's sign-in works: once signed out, it cannot be sent */
@@ -858,11 +983,20 @@
     var was = me && me.email, other = !v || v.email !== was;
     var again = !other && SI.fresh(v) && (syncState === 'stale' || !server || Object.keys(pending).length > 0 || unsentHere());
     me = v;
+    /* another account, or nobody: the last pupil's answer goes BEFORE the corner is drawn, or the next pupil sees the last
+       one's 한국어 switch until their own answer comes (the verification audit, 8 Oct 2026) */
+    if (other) { server = null; record = null; }
     if (other || (again && syncState === 'stale')) syncState = 'idle';
     paintWho();
-    if (v && other) { server = null; record = null; notListedSaid = false; claimFor(v.email); fetchMine(); fetchRecord(); }
+    if (v && other) {
+      notListedSaid = false; claimFor(v.email);
+      try { localStorage.removeItem(LANG_PREF); } catch (e) {}   /* the language is a pupil's own (kept under their address): the last one's goes */
+      paintKo();
+      route();          /* an open set holds the last pupil's record: draw it again on this pupil's (the audit, 8 Oct 2026) */
+      fetchMine(); fetchRecord();
+    }
     else if (again) { fetchMine(); if (!record) fetchRecord(); }
-    if (!v) { server = null; record = null; route(); }
+    if (!v) { server = null; record = null; paintKo(); route(); }
   });
 
   /* ---------- the student's own dashboard (the reflection system's record page) ----------
@@ -1023,7 +1157,7 @@
       if (!j || !j.ok) { if (j && j.why === 'not signed in') { if (c.pass && SI.dropPass) SI.dropPass(c.pass); if (sendCreds()) setSync('failed'); else spent(); } else setSync('failed'); return; }
       server = j;
       setSync(syncState === 'saving' ? 'saving' : 'saved');
-      paintWho();
+      paintWho(); accChanged();
       /* bring back progress made on another computer: only ever adds. A set the records hold on a NEWER
          go was started again elsewhere: this browser moves on too, keeping what it had in its first go and
          best. An OLDER go (or an older script that knows no goes) never reaches the page — its answers
@@ -1072,7 +1206,7 @@
     server.homework.forEach(function (hw) {
       var row = h('div', 'hw__row');
       var d = 0, t = 0;
-      (hw.sets || []).forEach(function (s) { var x = tallyBest(s); d += x.done; t += x.total; });
+      (hw.sets || []).forEach(function (s) { var x = hwDoneOf(s); d += x.done; t += x.total; });
       row.innerHTML = '<a href="#/hw/' + encodeURIComponent(hw.id) + '"><b>' + T.esc(hw.title) + '</b></a><span class="hw__due">due ' + T.esc(hw.due || '') + '</span><span>' + d + '/' + t + ' done</span>';
       box.appendChild(row);
     });
@@ -1090,7 +1224,7 @@
     var sec = h('section', 'kind');
     (hw.sets || []).forEach(function (sid) {
       var m = META.sets[sid]; if (!m) return;
-      var t = tallyBest(sid), u = META.units[m.unit], hws = hwStateOf(sid);
+      var t = hwDoneOf(sid), u = META.units[m.unit], hws = hwStateOf(sid);   /* the homework count: the same as its colour */
       var a = h('a', 'set' + (hws ? ' set--hw set--hw-' + hws : '')); a.href = '#/s/' + sid;
       a.innerHTML = '<span><span class="set__t">' + (u ? 'Topic ' + T.esc(u.n) + ' · ' : '') + T.esc(m.title) + '</span><br>' + hwPill(hws) + ' <span class="set__s">' + t.total + ' questions</span><span class="pbar"><i style="width:' + pct(t.done, t.total) + '%"></i></span></span><span class="set__go">' + (t.done >= t.total ? 'Done' : t.done ? 'Carry on' : 'Start') + ' →</span>';
       sec.appendChild(a);
