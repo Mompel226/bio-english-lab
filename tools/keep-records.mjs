@@ -16,10 +16,11 @@
    reword it, and run this tool again with the masters from before: the new keep carries the FIRST fingerprint on.
 
    This tool writes `keep` only after checking that the question still asks the same thing: the same type, the same
-   question, task, marks, model answer and every other field, the same number of options, each still right or wrong as
-   before. Only the options' words (and their `why`) may differ, and the other right orders the marking accepts (`orders`
-   on a build or order question, `anyOrder` list groups on a gap question). Anything else changed is reported and left to
-   restart.
+   question, task, marks and every other field, the same number of options, each still right or wrong as before. Only the
+   options' words (and their `why`) may differ, the other right orders the marking accepts (`orders` on a build or order
+   question, `anyOrder` list groups on a gap question), and the words of the model answer, line by line, with the same
+   number of lines and the same marks on each (8 Oct 2026, Daniel: "cause and effect words in model answers": the model
+   is shown after the question and marks nothing). Anything else changed is reported and left to restart.
 
    usage (from bio-english-lab/), after editing the masters:
      node tools/keep-records.mjs --was-masters <folder with topics/ and methods.master.js from before the edit>
@@ -28,6 +29,14 @@
    from a staging build (tools/build.mjs --out, which writes nothing else). Without --write it only reports. With --write
    it writes the keeps, builds a second staging copy and proves that every kept question has its old fingerprint again;
    then build for real (node tools/build.mjs).
+
+   --korean (8 Oct 2026, the translation audit): a card whose ONLY change since the published version is its Korean term
+   (`ko`, shown beside the keyword after the answer, marking nothing) keeps its fingerprint through an entry in
+   ../bio-english-lab-source/korean-keeps.json, which tools/build.mjs applies; the generated cards (meanings, etymology)
+   have no master entry to hold a keep. It compares every BUILT card of the published content.js (--was-built, or the
+   last commit) with a staging build: equal but for `ko` → an entry; anything else changed is listed and left alone.
+     node tools/keep-records.mjs --korean [--was-built <content.js>] [--write]
+   Correcting a kept card's Korean again: take its entry out of korean-keeps.json and run this again.
    ============================================================ */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -40,10 +49,53 @@ const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = path.resolve(REPO, '..', 'bio-english-lab-source');
 const args = process.argv.slice(2);
 const opt = n => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : null; };
-const WAS = opt('--was-masters'), WRITE = args.includes('--write');
+const WAS = opt('--was-masters'), WRITE = args.includes('--write'), KOREAN = args.includes('--korean');
 const WHY = opt('--why') || 'the options reworded without changing what the question asks';
 const ON = new Date().toISOString().slice(0, 10);
-if (!WAS) { console.error('usage: node tools/keep-records.mjs --was-masters <old folder> [--was-built <old content.js>] [--why "…"] [--write]'); process.exit(2); }
+if (!WAS && !KOREAN) { console.error('usage: node tools/keep-records.mjs --was-masters <old folder> [--was-built <old content.js>] [--why "…"] [--write]\n   or: node tools/keep-records.mjs --korean [--was-built <old content.js>] [--write]'); process.exit(2); }
+
+/* ---------- --korean: the cards whose only change is the Korean term ---------- */
+if (KOREAN) {
+  const decode = text => {
+    const w = {}; vm.runInNewContext(text, { window: w });
+    const AL = w.AL, items = {};
+    for (const sid of Object.keys(AL.sets)) {
+      const bin = Buffer.from(AL.sets[sid], 'base64').toString('latin1'); let o = '';
+      for (let i = 0; i < bin.length; i++) o += String.fromCharCode(bin.charCodeAt(i) ^ AL.k.charCodeAt(i % AL.k.length));
+      for (const it of JSON.parse(decodeURIComponent(escape(o))).items) items[it.id] = it;
+    }
+    return { items, v: Object.fromEntries(Object.values(AL.meta.sets).map(x => [x.id, x.v])) };
+  };
+  const stage = () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'keep-korean-'));
+    execFileSync('node', [path.join(REPO, 'tools/build.mjs'), '--out', tmp], { stdio: ['ignore', 'ignore', 'inherit'] });
+    return decode(fs.readFileSync(path.join(tmp, 'content.js'), 'utf8'));
+  };
+  const was = decode(opt('--was-built') ? fs.readFileSync(opt('--was-built'), 'utf8')
+    : execFileSync('git', ['-C', REPO, 'show', 'HEAD:js/data/content.js'], { encoding: 'utf8', maxBuffer: 256 << 20 }));
+  const now = stage(), strip = ({ h, ko, ...r }) => r, kept = [], beyond = [];
+  for (const id of Object.keys(now.items)) {
+    const a = was.items[id], b = now.items[id];
+    if (!a || a.h === b.h) continue;
+    if (JSON.stringify(strip(a)) === JSON.stringify(strip(b))) kept.push({ id, h: a.h, now: b.h, was: a.ko || '', ko: b.ko || '' });
+    else beyond.push(id);
+  }
+  console.log(`${kept.length} card(s) changed only in their Korean term: they keep their answers` + (WRITE ? '' : ' (dry run: --write writes the entries)'));
+  kept.forEach(k => console.log('  keep  ' + k.id.padEnd(34) + ' ' + k.was + ' → ' + k.ko));
+  if (beyond.length) console.log(`${beyond.length} card(s) changed in more than the Korean term since the published version (left alone): ` + beyond.slice(0, 12).join(', ') + (beyond.length > 12 ? ' …' : ''));
+  if (!WRITE || !kept.length) process.exit(0);
+  const FILE = path.join(SRC, 'korean-keeps.json'), cur = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8')) : {};
+  const why = opt('--why') || 'the Korean term corrected (the translation audit); the card asks the same';
+  kept.forEach(k => { cur[k.id] = { h: k.h, now: k.now, on: ON, why }; });
+  fs.writeFileSync(FILE, JSON.stringify(cur, null, 1) + '\n');
+  const after = stage();
+  let wrong = 0;
+  kept.forEach(k => { if (after.items[k.id].h !== k.h) { wrong++; console.error(`✗ ${k.id}: built as ${after.items[k.id].h}, not ${k.h}`); } });
+  const moved = Object.keys(was.v).filter(x => after.v[x] !== was.v[x]);
+  console.log(`staging build: ${kept.length - wrong} of ${kept.length} kept cards have their published fingerprint; ${moved.length} set(s) with a new v` +
+    (moved.length ? ' (' + moved.join(', ') + ')' : '') + '. Now build for real: node tools/build.mjs');
+  process.exit(wrong ? 1 : 0);
+}
 
 /* the fingerprints a built content.js gives each question: id → h */
 const fingerprints = text => {
@@ -78,8 +130,11 @@ const oldItems = await items(path.resolve(WAS)), newItems = await items(SRC);
    answers changes nothing a pupil has done */
 function sameQuestion(a, b) {
   if (!a || !b) return 'not in both versions';
-  const strip = x => { const { options, keep, orders, anyOrder, ...rest } = x; return rest; };
-  if (JSON.stringify(strip(a)) !== JSON.stringify(strip(b))) return 'something besides the options’ words or the other right orders changed';
+  const strip = x => { const { options, keep, orders, anyOrder, model, ...rest } = x; return rest; };
+  if (JSON.stringify(strip(a)) !== JSON.stringify(strip(b))) return 'something besides the options’ words, the other right orders or the model answer’s words changed';
+  const ma = a.model || [], mb = b.model || [], mk = ln => (typeof ln === 'string' ? 1 : (ln.m == null ? 1 : ln.m));
+  if (ma.length !== mb.length) return 'the model answer has a different number of lines';
+  for (let j = 0; j < ma.length; j++) if (mk(ma[j]) !== mk(mb[j])) return 'model line ' + (j + 1) + ' carries different marks';
   if (!a.options && !b.options) return '';
   if (!Array.isArray(a.options) || !Array.isArray(b.options)) return 'options came or went';
   if (a.options.length !== b.options.length) return 'the number of options changed';

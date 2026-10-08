@@ -20,8 +20,10 @@
          "BIO ENGLISH LAB EDITS APPLIED" and is refused) plus the 13 edits below, and nothing else.
          Every hand edit made to 4_ since then is DROPPED, silently: the §40.87 escapes (the plan
          JSON's "</" and the coaching's "<"), the "Which syllabus" block (28 Sep 2026), the §40.92
-         edits in _loadBatchedCoaching, and §40.94's rule that a card with no real example shows no
-         "Real example". Carry each of them into the edit list below before you ever use it.
+         edits in _loadBatchedCoaching, §40.94's rule that a card with no real example shows no
+         "Real example", and §40.126's Vocabulary tab (8 Oct 2026: Don't know / Sort of know / Know it
+         well filled from the reflections, the newest choice winning; no "My Weak Terms"). Carry each
+         of them into the edit list below before you ever use it.
 
    The 13 edits (full mode only). Each must find its original text exactly once, or the tool stops
    and writes no dashboard, so a dashboard that has moved on is never patched blind:
@@ -91,7 +93,8 @@ if (!guideOnly && !ARGS.includes(FULL)) {
     '    · the §40.87 escapes (the plan JSON\'s "</" and the coaching\'s "<"),',
     '    · the "Which syllabus" block (28 Sep 2026),',
     '    · the §40.92 edits in _loadBatchedCoaching,',
-    '    · §40.94: a card with no real example shows no "Real example" section.',
+    '    · §40.94: a card with no real example shows no "Real example" section,',
+    '    · §40.126: the Vocabulary tab\'s three lists filled from the reflections (no "My Weak Terms").',
     '  The safe path:  node tools/guide-gs.mjs --guide-only   (writes 6_QuestionGuide.gs alone;',
     '  the dashboard is untouched). Only once every edit above is in this tool\'s edit list:',
     '  add ' + FULL + '.'

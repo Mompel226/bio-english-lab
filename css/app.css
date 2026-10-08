@@ -53,6 +53,11 @@ button, input, select { font: inherit; color: inherit; }
 .who__card b { font-weight: 600; }
 .who__out { background: none; border: 1px solid #3A4A57; color: #C9D2D8; border-radius: var(--pill); padding: 6px 12px; font-size: 12.5px; cursor: pointer; }
 .who__out:hover { border-color: #7F93A2; color: #fff; }
+/* Accommodation (8 Oct 2026): the Korean switch, for pupils the teacher gave it */
+.who__ko { background: none; border: 1px solid #3A4A57; color: #C9D2D8; border-radius: var(--pill); padding: 6px 12px; font-size: 12.5px; cursor: pointer; }
+.who__ko:hover { border-color: #7F93A2; color: #fff; }
+.who__ko[aria-pressed="true"] { background: #E6ECEF; border-color: #E6ECEF; color: #14202B; font-weight: 600; }
+.who__langs { display: inline-flex; gap: 4px; }
 
 /* ---------- page frame ---------- */
 .main { display: block; min-height: 60vh; outline: none; }
@@ -649,3 +654,10 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
 /* five cards under "Also worth knowing" since the etymology card */
 @media (min-width: 1000px) { .explore__g { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); } }
 @media (max-width: 560px) { .wroot__l { display: block; } .wroot__k { display: block; min-width: 0; } }
+
+/* Accommodation (8 Oct 2026): after a second wrong try, why (pupils the teacher gave it only); the Korean meaning lines */
+.helpbox { margin-top: 10px; padding: 9px 11px; border-left: 3px solid var(--link); background: rgba(255, 255, 255, .7); border-radius: 0 var(--r-sm) var(--r-sm) 0; font-size: 15px; line-height: 1.5; }
+.helpbox__h { margin: 0 0 4px; font: 600 10.5px/1 var(--mono); letter-spacing: .09em; text-transform: uppercase; color: var(--link); }
+.kogloss { display: block; margin-top: 6px; color: var(--ink-2); font-size: 14.5px; line-height: 1.5; }
+.kogloss:lang(ko) { font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", var(--sans); }
+.kogloss:lang(zh-Hans) { font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", var(--sans); }

@@ -210,6 +210,88 @@
        check()  → { ok, parts? } or null when the answer is not complete yet
        clear()  → remove the red/green marking, keep the work
        lock(b)  → stop / allow editing                                              */
+  /* Accommodation (Daniel, 8 Oct 2026): a pupil the teacher gave the accommodation (Students tab; the page learns it from
+     english.mine and sets window.AL_HELP) sees, after their SECOND wrong check of a card, why what they did is wrong: the
+     card's `help` (the explanations of the pieces they got wrong) or, where a card has none of its own, the question's
+     why. Never after the first wrong check, and never for anyone else: finding the answer by reading again is the work. */
+  function helpOn() { return !!(global.AL_HELP && global.AL_HELP.acc); }
+  /* a keyword's meaning as help: the keyword is hidden, and so is every word built on one of its distinctive words (the
+     audit, 8 Oct 2026: "vertebral column" gave away vertebrae, "mammary glands" mammal, "metabolic" metabolism). Whole words
+     only, never inside another word ("AI" in "chain"), and the common word of a two-word keyword stays ("energy" in
+     "kinetic energy": hiding it left "The ___ of movement"; the verification audit). */
+  var KW_COMMON = /^(air|DNA|energy|water|cells?|blood|light|plants?|animals?|carbon|dioxide|oxygen|systems?|tissues?|organs?|body|food|heart|roots?|leaf|leaves|acids?|rate|muscles?|growth|proteins?|sugars?|gas|gases|pressure|surface|area|volume|concentration|movement|transport|structure|function|vessels?|membrane|walls?|chain|levels?|reactions?|response|changes?|number|test|cycle|factors?|population|community|species|humans?|diseases?|enzymes?)$/i;
+  var KW_STOP = /^(and|the|for|with|from|into|its|per|via|non|off|out|not|one|two|all|of|in|to|by|on|at|as|or|an|is|it|be|up|so|no|if|a)$/i;
+  var KW_IRREGULAR = { tooth: 'teeth', foot: 'feet', mouse: 'mice', child: 'children', man: 'men', woman: 'women' };
+  function kwMeaning(item) {
+    /* a word part's story often says its meaning ("having two seed leaves"), and its near note already explains a wrong choice */
+    if (!item.def || String(item.id || '').indexOf('kwr.') === 0) return '';
+    var d = T.plain(item.def), L = 'A-Za-zÀ-ÿ', typed = item.input !== 'choose';
+    var re = function (x) { return x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
+    var hide = function (pattern) { d = d.replace(new RegExp('(^|[^' + L + '])(?:' + pattern + ')(?![' + L + '])', 'gi'), '$1___'); };
+    /* a word with its plurals: -s, -es, and the Latin, Greek and old English ones (atria, villi, testes, arteries, teeth) */
+    var plurals = function (w) {
+      var out = [re(w) + '(?:e?s)?'], low = w.toLowerCase();
+      if (KW_IRREGULAR[low]) out.push(KW_IRREGULAR[low]);
+      if (/(um|on)$/i.test(w)) out.push(re(w.slice(0, -2)) + 'a');
+      if (/us$/i.test(w)) out.push(re(w.slice(0, -2)) + 'i');
+      if (/is$/i.test(w)) out.push(re(w.slice(0, -2)) + 'es');
+      if (/[^aeiou]y$/i.test(w)) out.push(re(w.slice(0, -1)) + 'ies');
+      return out.join('|');
+    };
+    /* a short word with its other forms: pull → pulling, high → higher, fat → fatty, use → used, using */
+    var forms = function (w) {
+      var base = w.length >= 4 && /[^s]s$/i.test(w) ? w.slice(0, -1) : w;
+      return plurals(w) + '|' + re(base) + '(?:e?s|e?d|ing|e?r|est)' + '|' + re(base + base.slice(-1)) + '(?:ing|ed|er|est|y)' +
+             (/e$/i.test(base) ? '|' + re(base.slice(0, -1)) + 'ing' : '');
+    };
+    /* the answer: the keyword, and on a TYPED card every accepted form, since each is an answer there ("bicuspid valve" for
+       "atrioventricular valve"); a chosen answer is marked by its option alone, so its accepted forms stay ("fats and oils"
+       in the meaning of "lipid"), except an abbreviation or its full name, the answer in other letters ("µm", "mRNA") */
+    var abbr = function (x) { return /[A-Z]{2}|µ/.test(String(x || '')); };
+    var answers = [item.key].concat((item.accept || []).filter(function (a) { return typed || abbr(a) || abbr(item.key); }))
+                    .map(function (k) { return String(k || '').trim(); }).filter(function (k) { return k.length >= 2; });
+    /* 1. each whole, with its plurals */
+    answers.forEach(function (k) { hide(plurals(k)); });
+    /* 2. an abbreviation spelled out: "Human immunodeficiency virus" for HIV, "follicle-stimulating hormone" for FSH */
+    answers.forEach(function (k) {
+      if (!/^[A-Z]{3,6}$/.test(k)) return;               /* three letters at least: two ("GM") match ordinary pairs of words */
+      var toks = [], m, wre = new RegExp('[' + L + ']+', 'g'), spans = [];
+      while ((m = wre.exec(d))) toks.push({ w: m[0], at: m.index });
+      for (var i = 0; i + k.length <= toks.length; i++) {
+        var run = toks.slice(i, i + k.length), span = d.slice(run[0].at, run[run.length - 1].at + run[run.length - 1].w.length);
+        if (run.every(function (t, j) { return t.w.length >= 3 && t.w.charAt(0).toUpperCase() === k.charAt(j); }) && /^[A-Za-zÀ-ÿ\s-]+$/.test(span))
+          spans.push([run[0].at, span.length]);
+      }
+      for (var s = spans.length - 1; s >= 0; s--) d = d.slice(0, spans[s][0]) + '___' + d.slice(spans[s][0] + spans[s][1]);
+    });
+    /* 3. their own words. A long word goes by its stem, so its other forms go too (denaturation → denatured, phagocytosis →
+       phagocyte, clotting → clot); a short word of a longer keyword goes whole, with its other forms ("vein" in "renal vein",
+       "pH" in "optimum pH"). The little words stay, and so does the common word of a longer keyword ("energy" in "kinetic
+       energy"), unless every word is common ("organ system": then they ARE the answer). On a choose card such a word stays
+       when a wrong option has it too ("cell" beside the option "cell membrane"): it points to no one option. */
+    var wrongs = typed ? [] : (item.opts || []).filter(function (o) { return T.norm(o) !== T.norm(item.key); });
+    var inWrong = function (w) { var r = new RegExp('(^|[^' + L + '])(?:' + plurals(w) + ')(?![' + L + '])', 'i'); return wrongs.some(function (o) { return r.test(String(o)); }); };
+    (typed ? answers : [String(item.key).trim()]).forEach(function (k) {   /* on a choose card, the keyword's words only */
+      var words = k.split(/[^A-Za-zÀ-ÿ]+/).filter(Boolean), many = words.length > 1;
+      var allCommon = words.filter(function (w) { return !KW_STOP.test(w); }).every(function (w) { return KW_COMMON.test(w); });
+      words.forEach(function (w) {
+        var common = KW_COMMON.test(w);
+        if (many && (KW_STOP.test(w) || (common && (!allCommon || inWrong(w))))) return;
+        if (w.length >= 5 && !(many && common)) {
+          /* the word's base: its ending off (denaturation → denatur, clotting → clot, linkage → link, filtration → filt, the e
+             that English puts back in "filter"), or a gentler cut when that leaves too little (mutation → mutat, osmosis → osmo) */
+          var b = w.replace(/(?:ications?|ifying|ified|ations?|itions?|ptions?|tions?|sions?|ities|ity|osis|ings?|ated|ed|ances?|ences?|ments?|age)$/i, '')
+                   .replace(/([bdgklmnprt])\1$/i, '$1');
+          if (b.length >= 5) b = b.replace(/([^aeiour])r$/i, '$1');
+          if (b.length < 4) b = w.replace(/(?:ion|sis|ing|ed)$/i, '');
+          if (b.length < 4) b = w;
+          hide(re(b.slice(0, Math.max(4, Math.min(Math.ceil(w.length * 0.7), b.length)))) + '[' + L + '-]*|' + plurals(w));
+        } else if (many && w.length >= 2) hide(forms(w));
+      });
+    });
+    return 'The keyword you need means: ' + T.esc(d);
+  }
+  function helpBox(html) { return html ? '<div class="helpbox"><p class="helpbox__h">Why</p>' + html + '</div>' : ''; }
   function foot(card, item, ctx, api) {
     var bar = h('div', 'card__foot');
     var bCheck = btn('Check', 'btn--go'), bAgain = btn('Try again', 'btn--quiet'), bShow = btn('Show the model answer', 'btn--quiet'), bNext = btn('Next →', 'btn--go');
@@ -220,7 +302,16 @@
     var modelHost = h('div', 'model-host');
     var after = h('div', 'card__next'); after.appendChild(bNext);
     card.appendChild(bar); card.appendChild(verdict); card.appendChild(fb); card.appendChild(modelHost); card.appendChild(after);
-    var shown = false, tries = 0;
+    var shown = false, tries = 0, wrongs = 0, changed = false, lastWrong = null;
+    /* what the pupil does on the card (not its Check, Try again or Show buttons): a wrong check after a change is a new try;
+       the same answer checked again is not (the audit, 8 Oct 2026: two presses of Check reached the help) */
+    function touched(e) {
+      var t = e.target;
+      if (!t || !t.closest || t.closest('.card__foot')) return;
+      if (e.type === 'click' && !t.closest('button,input,select,label,[role="button"],[tabindex]')) return;
+      changed = true;
+    }
+    card.addEventListener('input', touched, true); card.addEventListener('change', touched, true); card.addEventListener('click', touched, true);
 
     function reveal() {
       if (modelHost.firstChild) return;
@@ -243,9 +334,16 @@
       var why = res.ok ? (res.why || item.why || '') : (res.why || '');
       var whyHTML = res.whyHTML || '';
       if (!res.ok && !why && !whyHTML) why = api.wholeAnswer ? 'Your answer is kept as you left it. Change only what you want, then check again.' : 'Look again at the parts marked in red, then try once more.';
-      fb.hidden = !(why || whyHTML);
+      var sig = api.sig ? api.sig() : null;
+      if (res.ok) wrongs = 0;
+      else if (!wrongs || (sig != null ? sig !== lastWrong : changed)) wrongs++;   /* the same answer checked again is no new try */
+      if (!res.ok) lastWrong = sig;
+      changed = false;
+      var help = !res.ok && wrongs >= 2 && helpOn() ? (res.help != null ? res.help : (item.why ? T.tags(item.why) : '')) : '';
+      fb.hidden = !(why || whyHTML || help);
       fb.className = 'feedback ' + (res.ok ? 'feedback--ok' : 'feedback--no');
-      fb.innerHTML = whyHTML || T.tags(why);
+      fb.innerHTML = (whyHTML || T.tags(why)) + helpBox(help);
+      if (global.AL_KO_PAINT) global.AL_KO_PAINT(fb);
       bCheck.hidden = true;
       if (res.ok) { reveal(); finish(); bAgain.hidden = true; bShow.hidden = true; }
       else { bAgain.hidden = false; bShow.hidden = shown || !(item.model && item.model.length) && !api.showAnswer; }
@@ -344,7 +442,7 @@
         if (chosen < 0) return null;
         var o = item.options[chosen];
         buttons.forEach(function (x) { if (x.i === chosen) x.el.classList.add(o.ok ? 'is-right' : 'is-wrong'); });
-        return { ok: !!o.ok, why: o.why };
+        return { ok: !!o.ok, why: o.why, help: '' };
       },
       clear: function () { buttons.forEach(function (x) { x.el.classList.remove('is-right', 'is-wrong', 'is-on'); x.el.setAttribute('aria-pressed', 'false'); }); chosen = -1; },
       lock: function (b) { locked = b; }
@@ -395,7 +493,7 @@
           s.el.classList.add(ok ? 'is-right' : 'is-wrong');
           if (!ok) { wrong++; if (s.opts[i].why) whys.push('<b>' + T.esc(s.opts[i].t) + '</b> — ' + T.esc(s.opts[i].why)); }
         });
-        return { ok: !wrong, say: wrong ? '✗ ' + (slots.length - wrong) + ' of ' + slots.length + ' right' : '✓ Every choice scores', whyHTML: whys.join('<br>') };
+        return { ok: !wrong, say: wrong ? '✗ ' + (slots.length - wrong) + ' of ' + slots.length + ' right' : '✓ Every choice scores', whyHTML: whys.join('<br>'), help: '' };
       },
       clear: function () { slots.forEach(function (s) { if (s.el.classList.contains('is-wrong')) s.el.classList.remove('is-wrong'); s.el.classList.remove('is-right'); }); },
       lock: function (b) { slots.forEach(function (s) { s.el.disabled = b; }); },
@@ -549,18 +647,20 @@
             tip.textContent = 'You found them. Now tap each one and choose the word that scores.';
             return { ok: true, partial: true, say: '✓ You found every weak word', why: 'Now replace each one.' };
           }
-          return { ok: false, say: '✗ Not yet', why: missed && false_ ? 'Some weak words are still unmarked, and something you marked is fine as it is.' : missed ? 'There are still weak words you have not marked.' : 'You marked a word that is fine as it is.' };
+          return { ok: false, say: '✗ Not yet', why: missed && false_ ? 'Some weak words are still unmarked, and something you marked is fine as it is.' : missed ? 'There are still weak words you have not marked.' : 'You marked a word that is fine as it is.',
+                   help: flaws.filter(function (r) { return !found[r.k] && r.fl.why; }).map(function (r) { return '<b>' + T.esc(r.was) + '</b>: ' + T.esc(r.fl.why); }).join('<br>') };
         }
         if (flaws.some(function (r) { return r.val == null; })) return null;
-        var wrong = 0, whys = [];
+        var wrong = 0, whys = [], helps = [];
         flaws.forEach(function (r) {
           var ok = r.fl.opts[r.val] === r.fl.fix;
           r.el.classList.add(ok ? 'is-right' : 'is-wrong');
-          if (!ok) wrong++;
+          if (!ok) { wrong++; if (r.fl.why) helps.push('<b>' + T.esc(r.was) + '</b>: ' + T.esc(r.fl.why)); }
           if (r.fl.why) whys.push('<b>' + T.esc(r.was) + '</b> → <b>' + T.esc(r.fl.fix) + '</b>: ' + T.esc(r.fl.why));
         });
-        return { ok: !wrong, say: wrong ? '✗ ' + (flaws.length - wrong) + ' of ' + flaws.length + ' right' : '✓ Every word now scores', whyHTML: wrong ? '' : whys.join('<br>') };
+        return { ok: !wrong, say: wrong ? '✗ ' + (flaws.length - wrong) + ' of ' + flaws.length + ' right' : '✓ Every word now scores', whyHTML: wrong ? '' : whys.join('<br>'), help: helps.join('<br>') };
       },
+      sig: function () { return phase + ':' + flaws.map(function (r) { return (found[r.k] ? 'f' : '') + (r.val == null ? '' : r.val); }).join(',') + ':' + line.querySelectorAll('[data-miss="1"]').length; },
       clear: function () { flaws.forEach(function (r) { if (r.el.classList.contains('is-wrong')) { r.el.classList.remove('is-wrong'); } r.el.classList.remove('is-right'); }); },
       lock: function (b) { lockedAll = b; },
       showAnswer: function () {
@@ -619,8 +719,11 @@
         var why = ok ? els.filter(function (e) { return e.c.x && e.c.why; }).map(function (e) { return '<s>' + T.esc(T.plain(e.c.t)) + '</s> — ' + T.esc(e.c.why); }).join('<br>') :
           lostMark && keptWaste ? 'You struck out a piece that earns a mark, and kept a piece that does not.' :
           lostMark ? 'You struck out a piece that earns a mark. Bring it back.' : 'Something that scores nothing is still there.';
-        return ok ? { ok: ok, whyHTML: why } : { ok: ok, why: why };
+        var help = els.filter(function (e) { return e.c.x && e.c.why && !e.el.classList.contains('is-cut'); }).map(function (e) { return '<s>' + T.esc(T.plain(e.c.t)) + '</s> — ' + T.esc(e.c.why); })
+          .concat(els.filter(function (e) { return !e.c.x && e.el.classList.contains('is-cut'); }).map(function (e) { return '“' + T.esc(T.plain(e.c.t)) + '” earns a mark: keep it.'; })).join('<br>');
+        return ok ? { ok: ok, whyHTML: why } : { ok: ok, why: why, help: help || null };
       },
+      sig: function () { return els.map(function (e) { return e.el.classList.contains('is-cut') ? 1 : 0; }).join(''); },
       clear: function () { line.classList.remove('is-right', 'is-wrong'); },
       lock: function (b) { locked = b; },
       showAnswer: function () { els.forEach(function (e) { e.el.classList.toggle('is-cut', !!e.c.x); }); count(); locked = true; line.classList.add('is-right'); }
@@ -820,11 +923,13 @@
         var got = boxes.filter(function (b) { return b.p.got; }).length;
         var why = ok ? boxes.map(function (b) { return (b.p.got ? '✓ ' : '✗ ') + T.esc(T.plain(b.p.t)) + (b.p.why ? ' — ' + T.esc(b.p.why) : ''); }).join('<br>') :
           'An examiner would give a different total. Read each point again: is the idea really in the student’s words?';
+        var help = boxes.filter(function (b) { return b.cb.checked !== !!b.p.got && b.p.why; }).map(function (b) { return T.esc(T.plain(b.p.t)) + ' — ' + T.esc(b.p.why); }).join('<br>');
         return ok ? { ok: ok, say: '✓ Right: ' + got + ' mark' + (got === 1 ? '' : 's'), whyHTML: why }
-                  : { ok: ok, say: '✗ Not the examiner’s mark', why: why };
+                  : { ok: ok, say: '✗ Not the examiner’s mark', why: why, help: help || null };
       },
       clear: function () { list.classList.remove('is-right', 'is-wrong'); },
       lock: function (b) { locked = b; boxes.forEach(function (x) { x.cb.disabled = b; }); },
+      sig: function () { return boxes.map(function (b) { return b.cb.checked ? 1 : 0; }).join(''); },
       showAnswer: function () { boxes.forEach(function (b) { b.cb.checked = !!b.p.got; b.cb.disabled = true; }); sum(); list.classList.add('is-right'); }
     });
     return sh.card;
@@ -856,8 +961,9 @@
           var ok = T.norm(item.opts[chosen]) === T.norm(item.key);
           bs.forEach(function (x) { if (x.i === chosen) x.b.classList.add(ok ? 'is-right' : 'is-wrong'); });
           return ok ? { ok: ok, whyHTML: keyCard(item) }
-                    : { ok: ok, why: (item.near && item.near[item.opts[chosen]]) || '' };
+                    : { ok: ok, why: (item.near && item.near[item.opts[chosen]]) || '', help: kwMeaning(item) };
         },
+        sig: function () { return 'c' + chosen; },
         clear: function () { bs.forEach(function (x) { x.b.classList.remove('is-right', 'is-wrong', 'is-on'); }); chosen = -1; },
         lock: function (b) { locked = b; },
         showAnswer: function () { bs.forEach(function (x) { x.b.classList.remove('is-wrong', 'is-on'); if (T.norm(item.opts[x.i]) === T.norm(item.key)) x.b.classList.add('is-right'); }); locked = true; }
@@ -885,8 +991,9 @@
           return { ok: r.ok, whyHTML: r.ok
             ? (r.near ? 'Accepted — check the spelling: <b>' + T.esc(item.key) + '</b>.<br>' : '') +
               (cap ? cap + '<br>' : '') + keyCard(item)
-            : '' };
+            : '', help: kwMeaning(item) };
         },
+        sig: function () { return 't' + T.norm(inp.value); },
         clear: function () {},
         lock: function (b) { inp.readOnly = b; },
         showAnswer: function () { inp.value = item.key; inp.classList.remove('is-wrong'); inp.classList.add('is-right'); inp.readOnly = true; }
@@ -897,6 +1004,7 @@
     sh.card.addEventListener('click', function (e) {
       if (e.target && e.target.textContent === 'Show the model answer') {
         var fb = sh.card.querySelector('.feedback'); fb.hidden = false; fb.className = 'feedback feedback--ok'; fb.innerHTML = keyCard(item);
+        if (global.AL_KO_PAINT) global.AL_KO_PAINT(fb);
       }
     });
     return sh.card;
@@ -904,6 +1012,7 @@
   function keyCard(item) {
     return '<span class="kcard"><b class="kcard__t">' + T.esc(item.full || item.key) + '</b>' + (item.def ? '<span class="kcard__d">' + T.esc(item.def) + '</span>' : '') +
       (item.ko && (global.AL_CONFIG || {}).koreanGloss !== false ? '<span class="kcard__ko" lang="ko">' + T.esc(item.ko) + '</span>' : '') +
+      (kwIdOfItem(item) ? '<span class="kcard__kodef kogloss" lang="ko" data-kid="' + T.esc(kwIdOfItem(item)) + '" hidden></span>' : '') +
       (item.rsrc ? '<span class="kcard__src">Checked in: ' + T.esc(item.rsrc) + '</span>' : '') + '</span>' +
       rootsHTML(kwIdOfItem(item)) + extrasHTML(item);
   }
@@ -924,7 +1033,13 @@
     sh.body.appendChild(stepBox);
     var stage = h('div', 'estage'); sh.body.appendChild(stage);
     var marksNeeded = item.marks || item.frames.length;
-    var state = { step: 0, firstAll: true, tries: 0 };
+    var state = { step: 0, firstAll: true, tries: 0, wrongAt: [0, 0, 0], changed: false };
+    sh.card.addEventListener('input', function () { state.changed = true; }, true);
+    sh.card.addEventListener('change', function () { state.changed = true; }, true);
+    sh.card.addEventListener('click', function (e) {       /* a row moved, a box ticked: never the card's own buttons */
+      var t = e.target;
+      if (t && t.closest && !t.closest('.card__foot') && t.closest('button,input,select,label,[role="button"],[tabindex]')) state.changed = true;
+    }, true);
     var goodIdx = item.ideas.map(function (x, i) { return x.ok ? i : -1; }).filter(function (i) { return i >= 0; });
 
     function setStep(n) { state.step = n; pills.forEach(function (p, i) { p.classList.toggle('is-on', i === n); p.classList.toggle('is-done', i < n); }); }
@@ -968,10 +1083,12 @@
             var extra = on.filter(function (b) { return !item.ideas[b.i].ok; }).length, missing = goodIdx.length - on.filter(function (b) { return item.ideas[b.i].ok; }).length;
             why = extra && missing ? 'One idea you ticked scores nothing, and an idea that scores is not ticked.' : extra ? 'One of the ideas you ticked scores nothing here.' : 'An idea that earns a mark is not ticked yet.';
           }
-          return { ok: ok, why: why };
+          var help = on.filter(function (b) { return !item.ideas[b.i].ok && item.ideas[b.i].why; }).map(function (b) { return '✗ ' + T.esc(T.plain(item.ideas[b.i].t)) + ' — ' + T.esc(item.ideas[b.i].why); }).join('<br>');
+          return { ok: ok, why: why, help: help };
         },
         clear: function () { list.classList.remove('is-right', 'is-wrong'); },
         lock: function (b) { boxes.forEach(function (x) { x.cb.disabled = b; }); },
+        sig: function () { return boxes.map(function (b) { return b.cb.checked ? 1 : 0; }).join(''); },
         show: function () { boxes.forEach(function (b) { b.cb.checked = !!item.ideas[b.i].ok; b.cb.disabled = true; }); list.classList.add('is-right'); }
       };
     }
@@ -1043,7 +1160,14 @@
       if (!r) { verdict.className = 'verdict verdict--wait'; verdict.textContent = 'Finish this step first.'; return; }
       state.tries++;
       cur.lock(true);
-      if (!r.ok) { state.firstAll = false; say(false, r.say || '✗ Not yet', r.why); bGo.hidden = true; bAgain.hidden = false; bShow.hidden = false; return; }
+      if (!r.ok) {
+        state.firstAll = false;
+        var sg = cur.sig ? cur.sig() : null;
+        if (!state.wrongAt[state.step] || (sg != null ? sg !== state.lastWrong : state.changed)) state.wrongAt[state.step]++;   /* the same ticks checked again are not a new try */
+        state.lastWrong = sg; state.changed = false;
+        var help = state.wrongAt[state.step] >= 2 && helpOn() && r.help ? helpBox(r.help) : '';   /* accommodation: after the 2nd wrong check of this step */
+        say(false, r.say || '✗ Not yet', (r.why || '') + help); bGo.hidden = true; bAgain.hidden = false; bShow.hidden = false; return;
+      }
       say(true, r.say || '✓ Right', r.why);
       if (state.step < 2) { advanceMode(); return; }
       done();

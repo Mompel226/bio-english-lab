@@ -15,6 +15,8 @@
            ../bio-english-lab-source/syllabus-tags.json, past-keywords.json   the syllabus tags
            ../../labs-shared/syllabus.json, syllabus-versions.json, syllabus-past.json, signin.js
    Writes  js/data/content.js    the sets, each scrambled, plus the plain list the pages draw
+           js/data/ko.js         the keywords' Korean meanings, for pupils with the accommodation only
+           js/data/zh.js         the keywords' Chinese terms and meanings, for pupils with the accommodation only
            data/sets.json        the public list of sets (ids, names, counts — NO answers);
                                  the Apps Script reads it to offer sets as homework
            js/signin.js          copied from labs-shared/ (the one sign-in for the site)
@@ -753,6 +755,13 @@ const known = new Set();
 KEYWORDS.forEach(k => { if (k.en) known.add(k.en); });
 const shipped = {};
 let totalQ = 0;
+/* korean-keeps.json (8 Oct 2026, the translation audit): a keep for each card whose ONLY change is its Korean term (`ko`, shown
+   beside the keyword after the answer, part of every card's fingerprint, marking nothing): generated cards (the meanings and
+   the etymology sets) have no master entry to hold a keep, so they are kept here, by card id, as { h, now, on, why }. Written
+   by tools/keep-records.mjs --korean after it has checked that nothing but `ko` changed; never by hand. */
+const KO_KEEPS_FILE = path.join(SRC, 'korean-keeps.json');
+const KO_KEEPS = fs.existsSync(KO_KEEPS_FILE) ? JSON.parse(fs.readFileSync(KO_KEEPS_FILE, 'utf8')) : {};
+const koKeepUsed = new Set();
 for (const s of Object.values(SETS)) {
   /* A describe or explain question is about DATA (a graph or a table) or about THEORY, and the card
      says which: a student who only ever saw the data kind would think that is what the word means.
@@ -761,6 +770,10 @@ for (const s of Object.values(SETS)) {
   const modeOf = it => it.mode || ((it.figure || DATA_STEM.test(String(it.q || '') + ' ' + String(it.task || ''))) ? 'data' : 'theory');
   const items = s.items.map(it => {
     let x = (it.type === 'kw' && !it.ko && koFor(it.key)) ? { ...it, ko: koFor(it.key) } : it;
+    /* a card that carries its OWN Korean term must say what the keyword list says for the same keyword (by its full English
+       name): one Korean term per keyword everywhere (the translation audit, 8 Oct 2026, found two cards still on corrected terms) */
+    if (it.type === 'kw' && it.ko && it.full && !String(it.id).startsWith('kwr.') && koFor(it.full) && koFor(it.full) !== it.ko)
+      bad(it.id, `its own Korean term «${it.ko}» is not the keyword list's «${koFor(it.full)}» for "${it.full}" (keywords.master.js): change the card's ko, or the list`);
     if ((s.kind === 'describe' || s.kind === 'explain' || s.kind === 'method') && it.type !== 'learn' && /^(Describe|Explain)/i.test(String(it.cmd || ''))) x = { ...x, mode: modeOf(it) };
     /* `keep` (7 Oct 2026, the practice-questions audit): a question reworded WITHOUT changing what it asks keeps the
        fingerprint its answers were saved under, so nobody's answers, first tries or set restarts (Daniel: the options of
@@ -768,10 +781,13 @@ for (const s of Object.values(SETS)) {
        was not to be lost). keep = { h: the old fingerprint, now: the fingerprint of the wording it was declared for }. It
        holds only while the question reads exactly as declared; written by tools/keep-records.mjs after it has checked that
        only the options' words changed, never by hand. Never shipped to the page. */
-    const { keep, ...rest } = x, h0 = fnv(canon(rest));
+    const { keep: own, ...rest } = x, h0 = fnv(canon(rest)), keep = own || KO_KEEPS[it.id];
+    if (!own && KO_KEEPS[it.id]) koKeepUsed.add(it.id);
     if (keep) {
       if (keep.now === h0 && typeof keep.h === 'string') return { ...rest, h: keep.h };
-      bad(it.id, `its keep (${keep.on || 'no date'}) no longer applies: the question was reworded since, so it would restart for every pupil. Take the keep out of the master; then, if it still asks the same thing, run tools/keep-records.mjs with the masters from before (the new keep carries the first fingerprint on)`);
+      bad(it.id, own
+        ? `its keep (${keep.on || 'no date'}) no longer applies: the question was reworded since, so it would restart for every pupil. Take the keep out of the master; then, if it still asks the same thing, run tools/keep-records.mjs with the masters from before (the new keep carries the first fingerprint on)`
+        : `its entry in korean-keeps.json (${keep.on || 'no date'}) no longer applies: the card changed again. Take the entry out; then, if only its Korean term changed since the published version, run tools/keep-records.mjs --korean`);
     }
     return { ...rest, h: h0 };
   });
@@ -788,6 +804,9 @@ for (const s of Object.values(SETS)) {
   meta.sets[s.id] = { id: s.id, unit: s.unit || null, kind: s.kind, title: s.title, blurb: s.blurb || '', keys, v: fnv(keys.join('|')), modes };
   shipped[s.id] = scramble({ id: s.id, items });
 }
+/* every korean-keeps.json entry must keep a card: one that keeps none (a typo, a card taken out) would do nothing, unseen */
+Object.keys(KO_KEEPS).forEach(id => { if (!koKeepUsed.has(id)) bad(id, 'its entry in korean-keeps.json keeps no card (no card has this id, or the card has a keep of its own in its master): take it out'); });
+if (problems.length) { console.error('\n✗ ' + problems.length + ' problem' + (problems.length === 1 ? '' : 's') + ':\n  ' + problems.join('\n  ')); process.exit(1); }
 for (const [uid, u] of Object.entries(UNITS)) {
   const count = (u.sets || []).reduce((n, sid) => n + meta.sets[sid].keys.length, 0);
   meta.units[uid] = { id: uid, n: u.n, title: u.title, year: u.year, syl: u.syl || '', sets: u.sets || [], count };
@@ -910,6 +929,25 @@ fs.writeFileSync(path.join(REPO, 'js/data/content.js'),
   '/* GENERATED by tools/build.mjs — do not edit. The questions, scrambled; see the build for why. */\n' +
   'window.AL = ' + JSON.stringify({ k: KEY, v: STAMP, meta, sets: shipped }) + ';\n');
 fs.writeFileSync(path.join(REPO, 'data/sets.json'), JSON.stringify(manifest, null, 1) + '\n');
+/* Korean meanings (Daniel, 8 Oct 2026, the accommodation): each keyword's Korean definition, by keyword id, in a file of its
+   own that the page fetches ONLY for a pupil the teacher gave the accommodation (js/app.js loadKo). Never inside content.js:
+   no question's fingerprint moves, and nobody else downloads it. The masters' review note stands: the Korean was written
+   in a scientific register and has not been checked by a Korean-speaking biology teacher. */
+const KO_DEF = {};
+KEYWORDS.forEach(k => { if (k.ko_def) KO_DEF[k.id] = k.ko_def; });
+fs.writeFileSync(path.join(REPO, 'js/data/ko.js'),
+  '/* GENERATED by tools/build.mjs — do not edit. Korean meanings of the keywords, fetched only for pupils with the accommodation. */\n' +
+  'window.AL_KO = ' + JSON.stringify(KO_DEF) + ';\n');
+/* Chinese meanings (Daniel, 8 Oct 2026: "most struggling students are chinese"; the pupil chooses 한국어 or 中文): each
+   keyword's Chinese term and definition, "term：definition" (the Korean term already stands beside every keyword for
+   everyone, koreanGloss; nothing gives the Chinese one), in simplified characters, by keyword id. A file of its own,
+   fetched ONLY for a pupil with the accommodation who chooses 中文 (js/app.js loadLang): no question carries it, so no
+   fingerprint moves. Checked against the English with the Korean (audit/KO1–KO3), not by a Chinese-speaking biology teacher. */
+const ZH_DEF = {};
+KEYWORDS.forEach(k => { if (k.zh_def) ZH_DEF[k.id] = (k.zh ? k.zh + '：' : '') + k.zh_def; });
+fs.writeFileSync(path.join(REPO, 'js/data/zh.js'),
+  '/* GENERATED by tools/build.mjs — do not edit. Chinese terms and meanings of the keywords, fetched only for pupils with the accommodation. */\n' +
+  'window.AL_ZH = ' + JSON.stringify(ZH_DEF) + ';\n');
 if (shared) {
   const src = fs.readFileSync(path.join(shared, 'signin.js'), 'utf8');
   fs.writeFileSync(path.join(REPO, 'js/signin.js'), src);
