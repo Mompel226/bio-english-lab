@@ -9,12 +9,14 @@
    So a definition corrected once is corrected in both places.
 
      node tools/keywords.mjs import <path to 5_IgcseBiologyKeywords.gs>   make the master from the .gs (once)
-     node tools/keywords.mjs gs          write Code/5_IgcseBiologyKeywords.gs in the REAL reflection folder, by
-                                         absolute path (…/AppScript REFLECTION System/Code/; out/reflection/ only
-                                         on a machine without it). Run from a copy of this repository, it still
-                                         writes the real file, and remakes the reflection's Paste/ folder (the lean
-                                         copy Daniel pastes from; the keyword list is in its LeanKeywords.html).
+     node tools/keywords.mjs gs          write Code/5_IgcseBiologyKeywords.gs in the reflection folder, found from
+                                         this file's own place (IGCSE/AppScript/AppScript REFLECTION System/Code/,
+                                         the same on both Macs; out/reflection/ only where the estate has no
+                                         reflection folder). Run from a copy, it writes that copy's folder, never
+                                         the real one. It remakes the reflection's Paste/ folder (the lean copy
+                                         Daniel pastes from; the keyword list is in its LeanKeywords.html).
                                          Then raise REFLECTION_BUILD in Code/Code.gs and run lean_paste.cjs again.
+     node tools/keywords.mjs             the usage, and the file `gs` would write (a dry check: writes nothing)
      node tools/keywords.mjs check <path to a FULL 5_….gs>                 is that copy the same as the master? (the
                                          lean copy in Paste/ keeps the list in LeanKeywords.html: check Code/'s file)
      node tools/keywords.mjs patch <review.json>…                          apply reviewed edits to the master:
@@ -28,14 +30,13 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.resolve(HERE, '..', '..', 'bio-english-lab-source');
 const MASTER = path.join(SRC, 'keywords.master.js');
-/* The reflection system's own folder. Daniel keeps ONE copy of each of these files, in his synced
-   project folder "Code" (one folder since 28 Sep 2026, laid out like the old Final code: the numbered
-   .gs files at its top) — never a second in this repository's source tree, which is what these
-   tools used to write. */
-const REFLECT = [
-  '/Users/NLCS/Library/CloudStorage/OneDrive-Personal/NLCS/IGCSE/AppScript/AppScript REFLECTION System/Code'
-].filter(d => fs.existsSync(d));
-/* not on this machine? fall back to a working copy, so the tool still runs */
+/* The reflection system's own folder, found from here: labs/bio-english-lab/tools → IGCSE/AppScript/…/Code (one folder
+   since 28 Sep 2026; the same OneDrive path on both Macs, under each Mac's own home folder). Daniel keeps ONE copy of
+   each of these files there — never a second in this repository's source tree, which is what these tools used to write.
+   Until 11 Oct 2026 this was the school Mac's absolute path, so on the other Mac `gs` wrote the fallback below. */
+const REFLECT = [path.resolve(HERE, '..', '..', '..', '..', 'AppScript', 'AppScript REFLECTION System', 'Code')]
+  .filter(d => fs.existsSync(path.join(d, 'Code.gs')));
+/* no reflection folder beside this copy (a mirror, or a machine without the estate)? fall back to a working copy */
 const FALLBACK = path.join(SRC, 'out', 'reflection');
 /* Daniel PASTES the reflection from its Paste/ folder, a lean copy MADE from Code/ (reflection spec §40.108, 2 Oct 2026:
    Apps Script loads every byte of every .gs at the start of every call). A file written into Code/ therefore needs
@@ -155,4 +156,6 @@ if (cmd === 'import') {
   if (stale.length) console.log('  not applied (the field had changed since the review): ' + stale.length + '\n   ' + stale.slice(0, 30).join('\n   '));
 } else {
   console.log('usage: node tools/keywords.mjs import <gs> | gs | check <gs> | patch <review.json>…');
+  console.log('  gs writes ' + path.join(REFLECT[0] || FALLBACK, '5_IgcseBiologyKeywords.gs') +
+    (REFLECT.length ? '' : '  (no reflection folder beside this copy: the fallback)'));
 }

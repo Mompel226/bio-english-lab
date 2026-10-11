@@ -419,8 +419,9 @@
   }
 
   /* ============================================================
-     COMMAND WORDS — what each question word asks for. The same guide as the "How to answer"
-     tab of each student's dashboard: one master file builds both.
+     COMMAND WORDS — what each question word asks for. One master file builds this guide and the reflection's
+     6_QuestionGuide.gs (each word's line); My assessments shows a pupil's costliest command words with that line and
+     links each to #/commands/<word> here (reflection §40.142; the old page and its "How to answer" tab went, §40.146).
      ============================================================ */
   var CMD_GROUPS = [
     { title: 'Say it briefly', words: ['State', 'Name', 'Identify', 'Give', 'List', 'Choose', 'Complete', 'Define', 'Outline'] },
@@ -460,7 +461,7 @@
       a.innerHTML = '<span class="bigthree__w">' + x[0] + '</span><span class="bigthree__b">' + T.esc(x[2]) + '</span><span class="bigthree__go">Learn the method \u2192</span>';
       big.appendChild(a);
     });
-    w.appendChild(h('p', 'sec__p', 'The first word of a question tells you what kind of answer scores. This is the same guide as the “How to answer” tab on your dashboard.'));
+    w.appendChild(h('p', 'sec__p', 'The first word of a question tells you what kind of answer scores.'));
     var rl = h('p', 'rec'); rl.id = 'recLine'; rl.hidden = true; w.appendChild(rl);
     w.appendChild(h('p', 'sec__p bigthree__h', 'The three that carry the most marks:'));
     w.appendChild(big);
@@ -1037,7 +1038,7 @@
     /* straight to the Commands tab, which is the one that says which command words cost marks */
     return 'Your dashboard shows which command words cost you the most marks' +
       (record.assessments ? ' (' + record.reflected + ' of ' + record.assessments + ' assessments reflected)' : '') +
-      '. <a href="' + T.esc(url + (url.indexOf('?') >= 0 ? '&' : '?') + 'tab=commands') + '" target="_blank" rel="noopener">Open its Commands tab</a>, then practise those here first.';
+      '. <a href="' + T.esc(url + (url.indexOf('?') >= 0 ? '&' : '?') + 'tab=commands') + '" target="_blank" rel="noopener">Open its Exam skills tab</a>, then practise those here first.';
   }
   function paintRecord() {
     var el = document.getElementById('recLine');
