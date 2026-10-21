@@ -731,6 +731,33 @@
     return sh.card;
   }
 
+  /* The numbers of an order list are PLACES (1 = first) and never move: only the cards beside them move.
+     Until 21 Oct 2026 the number sat inside the card and the list was redrawn at once, so after a press it still
+     read 1, 2, 3 … and a pupil thought nothing had moved (only the words had changed). Now each card slides from
+     where it was, and the card pressed is outlined for a moment. */
+  var still = global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)');
+  function tops(list) {
+    var t = {};
+    Array.prototype.forEach.call(list.querySelectorAll('.orow__c'), function (c) { t[c.dataset.i] = c.getBoundingClientRect().top; });
+    return t;
+  }
+  function slid(list, was, moved) {
+    Array.prototype.forEach.call(list.querySelectorAll('.orow__c'), function (c) {
+      var dy = was[c.dataset.i] != null ? was[c.dataset.i] - c.getBoundingClientRect().top : 0;
+      if (dy && c.animate && !(still && still.matches)) c.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 200, easing: 'ease-out' });
+      if (c.dataset.i === String(moved)) { c.classList.add('is-moved'); setTimeout(function () { c.classList.remove('is-moved'); }, 900); }
+    });
+  }
+  /* one place in an order list: the number (CSS), then the card that moves */
+  function orow(text, i, up, dn) {
+    var li = h('li', 'orow'), c = h('div', 'orow__c');
+    c.dataset.i = String(i);
+    c.appendChild(h('span', 'orow__t', T.esc(T.plain(text))));
+    var ctl = h('span', 'orow__ctl'); ctl.appendChild(up); ctl.appendChild(dn);
+    c.appendChild(ctl); li.appendChild(c);
+    return li;
+  }
+
   /* ============================================================
      order — put the steps in the order an examiner reads them. ↑ ↓ buttons (keyboard too).
      item.steps in the right order; item.orders, other right orders as lists of step indexes (optional, as on build:
@@ -745,20 +772,18 @@
     var cur = mixed(item.steps.length, item.id, right);
     for (var tries = 0; tries < 6 && isRight(cur); tries++) cur = mixed(item.steps.length, item.id + ':' + tries, right);   /* never start on a right order */
     var locked = false;
-    function draw() {
+    function draw(moved) {
+      var was = tops(list);
       list.innerHTML = '';
       cur.forEach(function (i, pos) {
-        var li = h('li', 'orow');
-        li.appendChild(h('span', 'orow__t', T.esc(T.plain(item.steps[i]))));
         var up = btn('↑', 'mv'), dn = btn('↓', 'mv');
         up.setAttribute('aria-label', 'Move up'); dn.setAttribute('aria-label', 'Move down');
         up.disabled = pos === 0 || locked; dn.disabled = pos === cur.length - 1 || locked;
-        up.addEventListener('click', function () { if (pos > 0) { var t = cur[pos - 1]; cur[pos - 1] = cur[pos]; cur[pos] = t; list.classList.remove('is-right', 'is-wrong'); draw(); list.children[pos - 1].querySelector('.mv').focus(); } });
-        dn.addEventListener('click', function () { if (pos < cur.length - 1) { var t = cur[pos + 1]; cur[pos + 1] = cur[pos]; cur[pos] = t; list.classList.remove('is-right', 'is-wrong'); draw(); list.children[pos + 1].querySelectorAll('.mv')[1].focus(); } });
-        var ctl = h('span', 'orow__ctl'); ctl.appendChild(up); ctl.appendChild(dn);
-        li.appendChild(ctl);
-        list.appendChild(li);
+        up.addEventListener('click', function () { if (pos > 0) { var t = cur[pos - 1]; cur[pos - 1] = cur[pos]; cur[pos] = t; list.classList.remove('is-right', 'is-wrong'); draw(i); list.children[pos - 1].querySelector('.mv').focus(); } });
+        dn.addEventListener('click', function () { if (pos < cur.length - 1) { var t = cur[pos + 1]; cur[pos + 1] = cur[pos]; cur[pos] = t; list.classList.remove('is-right', 'is-wrong'); draw(i); list.children[pos + 1].querySelectorAll('.mv')[1].focus(); } });
+        list.appendChild(orow(item.steps[i], i, up, dn));
       });
+      slid(list, was, moved);
     }
     draw();
     sh.body.appendChild(list);
@@ -1100,16 +1125,17 @@
       var right = item.frames.map(function (_, i) { return i; });
       var cur2 = mixed(item.frames.length, item.id + ':o', right), list = h('ol', 'olist'), locked = false;
       var labels = item.frames.map(function (f) { return f.replace(/\{\{([^}|]+)[^}]*\}\}/g, '$1'); });
-      function draw() {
+      function draw(moved) {
+        var was = tops(list);
         list.innerHTML = '';
         cur2.forEach(function (i, pos) {
-          var li = h('li', 'orow'); li.appendChild(h('span', 'orow__t', T.esc(T.plain(labels[i]))));
           var up = btn('↑', 'mv'), dn = btn('↓', 'mv'); up.disabled = pos === 0 || locked; dn.disabled = pos === cur2.length - 1 || locked;
           up.setAttribute('aria-label', 'Move up'); dn.setAttribute('aria-label', 'Move down');
-          up.addEventListener('click', function () { var t = cur2[pos - 1]; cur2[pos - 1] = cur2[pos]; cur2[pos] = t; list.classList.remove('is-right', 'is-wrong'); draw(); });
-          dn.addEventListener('click', function () { var t = cur2[pos + 1]; cur2[pos + 1] = cur2[pos]; cur2[pos] = t; list.classList.remove('is-right', 'is-wrong'); draw(); });
-          var c = h('span', 'orow__ctl'); c.appendChild(up); c.appendChild(dn); li.appendChild(c); list.appendChild(li);
+          up.addEventListener('click', function () { var t = cur2[pos - 1]; cur2[pos - 1] = cur2[pos]; cur2[pos] = t; list.classList.remove('is-right', 'is-wrong'); draw(i); list.children[pos - 1].querySelector('.mv').focus(); });
+          dn.addEventListener('click', function () { var t = cur2[pos + 1]; cur2[pos + 1] = cur2[pos]; cur2[pos] = t; list.classList.remove('is-right', 'is-wrong'); draw(i); list.children[pos + 1].querySelectorAll('.mv')[1].focus(); });
+          list.appendChild(orow(labels[i], i, up, dn));
         });
+        slid(list, was, moved);
       }
       draw(); stage.appendChild(list);
       cur = {

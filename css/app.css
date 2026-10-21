@@ -420,13 +420,16 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
 
 /* order */
 .olist { list-style: none; margin: 0; padding: 0; counter-reset: o; border-radius: var(--r); }
-.orow { counter-increment: o; display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; border: 1px solid var(--rule); background: var(--card); border-radius: var(--r-sm); padding: 8px 8px 8px 10px; margin-bottom: 8px; }
+/* the number is a place and stays outside the card; only the card moves (21 Oct 2026) */
+.orow { counter-increment: o; display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: center; margin-bottom: 8px; }
 .orow::before { content: counter(o); font: 650 18px/1 var(--serif); color: var(--muted); text-align: center; }
+.orow__c { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; border: 1px solid var(--rule); background: var(--card); border-radius: var(--r-sm); padding: 8px 8px 8px 10px; transition: box-shadow .5s; }
+.orow__c.is-moved { box-shadow: 0 0 0 3px var(--teal); transition: none; }
 .orow__ctl { display: flex; gap: 4px; }
 .mv { width: 44px; height: 44px; border: 1px solid var(--rule); background: var(--paper); border-radius: 8px; cursor: pointer; font-size: 18px; padding: 0; }
 .mv:disabled { opacity: .3; cursor: default; }
-.olist.is-right .orow { border-color: var(--green-2); background: var(--ok-tint); }
-.olist.is-wrong .orow { border-color: #E2AFA8; }
+.olist.is-right .orow__c { border-color: var(--green-2); background: var(--ok-tint); }
+.olist.is-wrong .orow__c { border-color: #E2AFA8; }
 
 /* sort */
 .srows { display: grid; gap: 10px; }
