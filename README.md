@@ -8,7 +8,7 @@
 
 ![describe](https://img.shields.io/badge/describe-0B5F7A) ![explain](https://img.shields.io/badge/explain-14572B) ![plan](https://img.shields.io/badge/plan_an_investigation-8A5306) ![keywords](https://img.shields.io/badge/keywords-5E3592) ![marks itself](https://img.shields.io/badge/marks_itself-1E7A3E) ![no sign-up](https://img.shields.io/badge/no_sign--up-66707A)
 
-by **Dr Daniel Mompel Riera** · NLCS Jeju
+by **Dr Daniel Mompel Riera**
 
 </div>
 
@@ -66,7 +66,7 @@ dashboard, so the two never teach a word two ways.
 
 ---
 
-Made by **Dr Daniel Mompel Riera** · Biology, NLCS Jeju · dmompelriera@nlcsjeju.kr
+Made by **Dr Daniel Mompel Riera** · dmompelriera@nlcsjeju.kr
 
 ## Licence
 
