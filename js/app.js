@@ -1281,6 +1281,8 @@
       (META.words[uid] || []).forEach(function (x) { if (!KWX[x.id]) KWX[x.id] = { id: x.id, t: x.t, d: x.d, ko: x.ko, sup: x.sup, uid: uid, n: u ? String(u.n) : '' }; });
     });
     (META.wordsMore || []).forEach(function (x) { if (!KWX[x.id]) KWX[x.id] = { id: x.id, t: x.t, d: x.d, ko: x.ko, sup: x.sup, uid: '', n: x.tp ? String(x.tp) : '', ib: !!x.ib }; });
+    /* part 2: the labs' glossary words that are no keyword, each a card of its own (meta.gloss, "g.<word>") */
+    Object.keys(META.gloss || {}).forEach(function (id) { var g = META.gloss[id]; if (!KWX[id]) KWX[id] = { id: id, t: g.t, d: g.d, ko: '', sup: g.sup, uid: '', n: '', gl: true }; });
     return KWX;
   }
   /* the name a word is said by: "Alveoli (singular: alveolus)" is said "alveoli" */
@@ -1324,7 +1326,9 @@
     var k = w.replace(/ies$/, "y").replace(/([^s])s$/, "$1");
     return (index.exact[k] || index.alias[k] || []).slice();
   }
-  function kwIndex() { if (!KWI) { var K = kwAll(); KWI = _vocabCardIndex_(Object.keys(K).map(function (id) { return { id: id, en: K[id].t }; })); } return KWI; }
+  /* over the keywords only, as the reflection matches (never the glossary's own cards) */
+  function kwIndex() { if (!KWI) { var K = kwAll(); KWI = _vocabCardIndex_(Object.keys(K).filter(function (id) { return !K[id].gl; }).map(function (id) { return { id: id, en: K[id].t }; })); } return KWI; }
+  function labName(from) { var l = String(from || '').replace(/^l:/, '').replace(/-lab$/, ''); return l ? l.charAt(0).toUpperCase() + l.slice(1) + ' Lab' : 'a lab'; }
   /* the reflections' words on their cards: [[id, n|r|y, ms]], and the words with no card */
   function reflWords() {
     var out = [], none = [], wr = P.wr && P.wr.refl ? P.wr.refl : [];
@@ -1519,7 +1523,8 @@
     var K = kwAll(), m = myWords(), x = mwOpen && K[mwOpen], cur = mwOpen && m[mwOpen];
     if (!x || !cur) { el.innerHTML = ''; return; }
     var from = cur.from === 'r' ? 'From your assessment reflection' + (cur.at ? ' (the assessment of ' + T.esc(mwDate(cur.at)) + ')' : '') + '.'
-             : cur.from === 'w' ? 'You added it from a topic’s keyword list.' : '';
+             : cur.from === 'w' ? 'You added it from a topic’s keyword list.'
+             : /^l:/.test(cur.from) ? 'You marked it in the ' + T.esc(labName(cur.from)) + '’s glossary.' : '';
     el.innerHTML = '<div class="mwc"><h3 class="mwc__t">' + T.esc(x.t) + (x.ko && CFG.koreanGloss !== false ? ' <span class="words__ko" lang="ko">' + T.esc(x.ko) + '</span>' : '') + '</h3>' +
       (window.Say ? window.Say.html(sayTerm(x.t)) : '') +
       '<p class="mwc__d">' + T.esc(x.d) + '<span class="words__kodef kogloss" lang="ko" data-kid="' + T.esc(x.id) + '" hidden></span></p>' +
@@ -1576,7 +1581,7 @@
     FC.up = false;
     st.innerHTML = '<p class="fc__left">' + FC.q.length + ' card' + (FC.q.length === 1 ? '' : 's') + ' left</p>' +
       '<div class="fc" id="fcCard" role="button" tabindex="0" aria-label="' + T.esc(sayTerm(x.t)) + ': turn the card">' +
-      '<p class="fc__topic">' + (x.n ? 'Topic ' + T.esc(x.n) : 'Keyword') + (x.sup ? ' · Supplement' : '') + (x.ib ? ' · beyond 0610' : '') + '</p>' +
+      '<p class="fc__topic">' + (x.n ? 'Topic ' + T.esc(x.n) : x.gl ? 'The labs’ glossary' : 'Keyword') + (x.sup ? ' · Supplement' : '') + (x.ib ? ' · beyond 0610' : '') + '</p>' +
       '<p class="fc__term">' + T.esc(x.t) + '</p>' +
       (window.Say ? window.Say.html(sayTerm(x.t)) : '') +
       '<div class="fc__back" id="fcBack" hidden><p class="fc__d">' + T.esc(x.d) + '</p>' +
