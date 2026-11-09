@@ -10,6 +10,8 @@
      #/w/<unit>    a topic's keyword list, with the word parts its keywords are built from
      #/roots       etymology: every word part, group by group
      #/review      what is due again
+     #/my          My words: the pupil's own keyword list (9 Nov 2026), from the keyword pages' ＋ and their reflections
+     #/my/cards    its flashcards (/all: with the words they know)
      #/commands[/<word>]  the command-word guide (the reflection's 6_QuestionGuide.gs links
                    here — do not rename it)
 
@@ -183,6 +185,9 @@
     /* homework, for a signed-in student who has some */
     var hwHost = h('div', 'wrap'); main.appendChild(hwHost); paintHomework(hwHost);
 
+    /* My words to practise (9 Nov 2026): the same banner as Review, under it */
+    var mwHost = h('div', 'wrap'); mwHost.id = 'mwBanner'; main.appendChild(mwHost);
+
     /* questions due for review */
     var due = dueList(0).length;
     if (due) {
@@ -217,6 +222,7 @@
     var grid2 = h('div', 'explore__g');
     var cards = [];
     if (META.guide) cards.push({ href: '#/commands', t: 'Every command word', b: 'State, suggest, compare, evaluate and the rest: what each one asks for, with a real example.' });
+    cards.push({ href: '#/my', t: 'My words: your flashcards', b: 'Your own list of keywords: press \uff0b beside any word on a topic\u2019s keyword list, and the words you rate in your reflections come too. Practise them as flashcards.' });
     if (META.roots) cards.push({ href: '#/roots', t: 'Etymology: word parts', b: 'cardi- means heart, hepat- means liver, -cyte means cell. Learn the parts, then work out words you have never been taught.' });
     (META.extras || []).forEach(function (x) { cards.push({ href: '#/s/' + x.set, t: x.title, b: x.blurb || '' }); });
     cards.forEach(function (c) {
@@ -228,6 +234,7 @@
     ms.appendChild(more);
     main.appendChild(band1);
     paintRecord();
+    paintMwBanner(); wantWords();
 
     /* practise by topic */
     var band2 = h('section', 'band band--practise');
@@ -519,6 +526,8 @@
     w.appendChild(h('a', 'back', '← Topic ' + T.esc(u.n) + ': ' + T.esc(u.title))).href = '#/u/' + uid;
     w.appendChild(h('header', 'uhead', '<p class="eyebrow">Topic ' + T.esc(u.n) + ' · ' + W.length + ' keywords</p><h1 class="uhead__t">Keywords: ' + T.esc(u.title) + '</h1>'));
     w.appendChild(h('p', 'sec__p', 'Read them, cover the definition, say it, check. Then test yourself: the Keywords sets ask for every one of them. These are the same definitions as the flashcards on your dashboard.'));
+    /* My words (9 Nov 2026): a word the pupil wants to learn goes to their own flashcards with one press */
+    var mwl = h('p', 'mw__line'); mwl.id = 'mwLine'; w.appendChild(mwl); paintMwLine();
     var RB = rootsBox(uid); if (RB) w.appendChild(RB);
     var dl = h('dl', 'words');
     W.forEach(function (x) {
@@ -528,18 +537,21 @@
       var p = E.pastOfId ? E.pastOfId(x.id) : null;
       var chip = !p ? '' : ' <button type="button" class="words__past words__past--' + (p.old ? 'old' : p.beyond ? 'beyond' : 'word') + '" aria-expanded="false">' +
         (p.old ? 'old syllabus \u00b7 until ' + T.esc(((META.past.st || {})[p.old] || {}).until || '') : p.beyond ? 'beyond 0610' : 'word not in 0610') + '</button>';
-      g.appendChild(h('dt', 'words__t', T.esc(x.t) + (x.sup ? ' <span class="words__sup">Supplement</span>' : '') + chip + (x.ko && CFG.koreanGloss !== false ? ' <span class="words__ko" lang="ko">' + T.esc(x.ko) + '</span>' : '')));
+      g.appendChild(h('dt', 'words__t', T.esc(x.t) + (x.sup ? ' <span class="words__sup">Supplement</span>' : '') + chip + (x.ko && CFG.koreanGloss !== false ? ' <span class="words__ko" lang="ko">' + T.esc(x.ko) + '</span>' : '') +
+        addBtn(x.id) + (window.Say ? window.Say.html(sayTerm(x.t)) : '')));
       g.appendChild(h('dd', 'words__d', T.esc(x.d) + '<span class="words__kodef kogloss" lang="ko" data-kid="' + T.esc(x.id) + '" hidden></span>' +
         (META.roots ? E.rootsHTML(x.id) : '') + (p ? '<span class="words__pnote' + (p.old ? '' : ' words__pnote--plain') + '" hidden>' + E.pastText(p) + '</span>' : '')));
       dl.appendChild(g);
     });
     dl.addEventListener('click', function (e) {
+      var ad = e.target.closest('.mw__add'); if (ad) { toggleWord(ad.getAttribute('data-add')); return; }
       var b = e.target.closest('.words__past'); if (!b) return;
       var n = b.closest('.words__i').querySelector('.words__pnote'); if (!n) return;
       n.hidden = !n.hidden; b.setAttribute('aria-expanded', n.hidden ? 'false' : 'true');
     });
     w.appendChild(dl);
     paintKo(dl);
+    wantWords();
     /* The sentence frames this topic teaches, gathered from its own questions: the shapes to
        revise before a test. The same sentences the cards use, one after another. */
     var FR = (META.frames || {})[uid] || [];
@@ -950,8 +962,10 @@
   var OWNER_KEY = 'bio-english-lab.owner', UNSENT_KEY = 'bio-english-lab.unsent';
   function markUnsent(on) { try { if (on) localStorage.setItem(UNSENT_KEY, '1'); else localStorage.removeItem(UNSENT_KEY); } catch (e) {} }
   function unsentHere() { try { return !!localStorage.getItem(UNSENT_KEY); } catch (e) { return true; } }
-  function hasWork() { return Object.keys(P.sets).some(function (sid) { var r = P.sets[sid]; return r && ((r.items && Object.keys(r.items).length) || goOf(r) > 1); }); }
-  function clearHere() { P = { sets: {}, year: P.year }; save(); pending = {}; markUnsent(false); }
+  function hasWork() { return Object.keys(P.sets).some(function (sid) { var r = P.sets[sid]; return r && ((r.items && Object.keys(r.items).length) || goOf(r) > 1); }) ||
+    !!(P.words && Object.keys(P.words).length); }
+  /* the pupil's words (P.words, P.wr) go with the rest: they belong to the same pupil (My words, 9 Nov 2026) */
+  function clearHere() { P = { sets: {}, year: P.year }; save(); pending = {}; wordsDirty = {}; wordsServer = null; markUnsent(false); }
   /* Whose work THIS page holds in memory: the stored owner it was loaded with, then each pupil it is claimed for; a
      sign-out never clears it. Two tabs of the site share the stored owner, so another tab that has already claimed this
      browser for the next pupil hid the last pupil's work still in this page's memory, and it was sent with the next
@@ -986,7 +1000,7 @@
     me = v;
     /* another account, or nobody: the last pupil's answer goes BEFORE the corner is drawn, or the next pupil sees the last
        one's 한국어 switch until their own answer comes (the verification audit, 8 Oct 2026) */
-    if (other) { server = null; record = null; }
+    if (other) { server = null; record = null; wordsServer = null; wordsAskedAt = 0; }
     if (other || (again && syncState === 'stale')) syncState = 'idle';
     paintWho();
     if (v && other) {
@@ -1136,15 +1150,15 @@
           clearTimeout(syncTimer); syncTimer = setTimeout(function () { syncTimer = null; flush(); }, 60000);
           if (j && j.why && j.why !== 'not signed in') toast('Your progress was not recorded: ' + j.why);
         }
-        else { setSync('saved'); if (!Object.keys(pending).length && gen === answeredGen) markUnsent(false); }
+        else { setSync('saved'); if (!Object.keys(pending).length && !Object.keys(wordsDirty).length && gen === answeredGen) markUnsent(false); }
       })
       .catch(function () {
         ids.forEach(function (s) { pending[s] = true; }); setSync('failed');
         clearTimeout(syncTimer); syncTimer = setTimeout(function () { syncTimer = null; flush(); }, 60000);   /* "will retry" is true */
       });
   }
-  addEventListener('pagehide', function () { if (Object.keys(pending).length) flush(true); });
-  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && Object.keys(pending).length) flush(true); });
+  addEventListener('pagehide', function () { if (Object.keys(pending).length) flush(true); if (Object.keys(wordsDirty).length) flushWords(true); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && Object.keys(pending).length) flush(true); if (document.visibilityState === 'hidden' && Object.keys(wordsDirty).length) flushWords(true); });
   var mineAsking = '';     /* the account a records call is out for: one call at a time, and an answer for another account is dropped */
   function fetchMine() {
     if (!syncOn() || !me) return;
@@ -1195,7 +1209,7 @@
          queue every set with an answer in it (the server merge only ever adds, so nothing is lost) */
       var toSend = Object.keys(P.sets).filter(function (sid) { var r = P.sets[sid]; return META.sets[sid] && r && ((r.items && Object.keys(r.items).length) || goOf(r) > 1); });
       toSend.forEach(function (sid, i) { queueSync(sid, i === toSend.length - 1); });
-      route();
+      if (!/^#\/my\/cards/.test(location.hash)) route();   /* never in the middle of a round of My words' cards */
     }).catch(function () { if (mineAsking === asked) mineAsking = ''; if (me && me.email === asked) setSync('failed'); });
   }
   function paintHomework(host) {
@@ -1233,6 +1247,371 @@
     w.appendChild(sec); main.appendChild(w);
   }
 
+
+  /* ============================================================
+     MY WORDS — the pupil's own keywords and their flashcards (9 Nov 2026)
+     Daniel: "the idea is to allow them to generate and personalise the lists of keyword/flashcards", from the words they
+     choose while they study, not only the words their reflections rate. Three lists, the reflection's own names: I do not
+     know these yet (n), I partly know these (r), I know these (y).
+       · P.words  { <keyword id>: [list n|r|y|x, when (s), from] }: the pupil's moves; x = taken out of the list. from = where the
+                  word first came from: "w" a topic's keyword list (＋), "r" a reflection. Kept in this browser with the rest
+                  of P (so a shared computer's next pupil never inherits it: claimFor, clearHere) and, signed in, in the labs
+                  script (words.save / words.mine; the ✍️ Bio English tab's My words column), so every computer has it.
+       · P.wr     { refl: [[word as written, n|r|y, when (ms)]], on, at }: the words their reflections rated, as words.mine
+                  read them from the Student Progress Tracker (kept here for the next visit; asked again after ten minutes).
+     A reflection's word goes on its keyword card by _vocabCardIndex_/_vocabCardsFor_ below: a COPY of the reflection's
+     own (its Code.gs; harness check_vocab_lists.mjs keeps the two the same), over EVERY keyword (the topic pages' and
+     meta.wordsMore), as the reflection reads them. Between a reflection's rating and a move the newest wins, the rule
+     of My assessments (Daniel, 8 Oct 2026: "The newest choice wins").
+     The flashcards: the word first, with its sounds (js/say.js: Cambridge Dictionary's UK and US recordings, played from
+     Cambridge, Daniel's choice of 8 Nov 2026; Daniel, 9 Nov 2026: "link the audios from the cambridge website to the
+     flashcards too"); the pupil says what it means, turns the card, and says how well they knew it, which moves the word.
+     A word they did not know comes again three cards later (three times at most), a word they partly knew once more at
+     the end, so the round ends with the words they know.
+     ============================================================ */
+  var MW_LISTS = [['n', 'I do not know these yet'], ['r', 'I partly know these'], ['y', 'I know these']];
+  var wordsDirty = {}, wordsTimer = null, wordsServer = null, wordsAsking = '', wordsAskedAt = 0, WORDS_SAVE_AFTER = 30000;
+  var KWX = null, KWI = null;
+  /* every keyword the site has, by id: the topic pages' lists, then the ones on no topic page */
+  function kwAll() {
+    if (KWX) return KWX;
+    KWX = {};
+    Object.keys(META.words || {}).forEach(function (uid) {
+      var u = META.units[uid];
+      (META.words[uid] || []).forEach(function (x) { if (!KWX[x.id]) KWX[x.id] = { id: x.id, t: x.t, d: x.d, ko: x.ko, sup: x.sup, uid: uid, n: u ? String(u.n) : '' }; });
+    });
+    (META.wordsMore || []).forEach(function (x) { if (!KWX[x.id]) KWX[x.id] = { id: x.id, t: x.t, d: x.d, ko: x.ko, sup: x.sup, uid: '', n: x.tp ? String(x.tp) : '', ib: !!x.ib }; });
+    return KWX;
+  }
+  /* the name a word is said by: "Alveoli (singular: alveolus)" is said "alveoli" */
+  function sayTerm(t) { return String(t).replace(/\s*\(.*$/, '').trim(); }
+
+  /* ---- the reflection's matcher: a COPY of the reflection's Code.gs, kept the same by check_vocab_lists.mjs ---- */
+  function _vocabCardIndex_(cards) {
+    function low(x) { return String(x || "").toLowerCase().replace(/[\u2018\u2019]/g, "'").replace(/\s+/g, " ").trim(); }
+    function one(x) { return x.replace(/ies$/, "y").replace(/([^s])s$/, "$1"); }
+    function head(en) { return low(en).replace(/\s*\([^)]*\)/g, "").replace(/\s+/g, " ").trim(); }
+    function brackets(en) {   // the brackets that END the name; "Ethanol (emulsion) test": "emulsion" is part of the name, not another one
+      var s = low(en), out = [], re = /\(([^)]*)\)/g, m;
+      while ((m = re.exec(s))) if (/^(?:\s*\([^)]*\))*\s*$/.test(s.slice(re.lastIndex))) out.push(m[1].trim());
+      return out;
+    }
+    var exact = {}, alias = {}, bracketUse = {}, headUse = {};
+    function add(map, k, id) { if (!k) return; if (!map[k]) map[k] = []; if (map[k].indexOf(id) < 0) map[k].push(id); }
+    (cards || []).forEach(function (c) {
+      if (!c || !c.id) return;
+      var h = one(head(c.en)); headUse[h] = (headUse[h] || 0) + 1;
+      brackets(c.en).forEach(function (t) { var k = one(t); bracketUse[k] = (bracketUse[k] || 0) + 1; });
+    });
+    (cards || []).forEach(function (c) {
+      if (!c || !c.id) return;
+      var h = head(c.en);
+      add(exact, one(h), c.id);
+      add(exact, one(low(c.id).replace(/_/g, " ")), c.id);
+      brackets(c.en).forEach(function (t) {
+        var m = t.match(/^(?:singular|plural)\s*:\s*(.+)$/);
+        if (m) { add(alias, one(m[1].trim()), c.id); return; }
+        if (/[\/:]/.test(t) || t === "ib" || /^(?:in|of|on|at|to|for|from|with|between|and|or|the|a|an|e\.g\.?|eg|types?)\b/.test(t)) return;
+        if (bracketUse[one(t)] > 1 || headUse[one(h)] > 1) return;
+        add(alias, one(t), c.id);
+      });
+    });
+    return { exact: exact, alias: alias };
+  }
+  function _vocabCardsFor_(word, index) {
+    var w = String(word || "").toLowerCase().replace(/[\u2018\u2019]/g, "'").replace(/\s*\([^)]*\)/g, "").replace(/\s+/g, " ").trim();
+    if (!w || !index) return [];
+    var k = w.replace(/ies$/, "y").replace(/([^s])s$/, "$1");
+    return (index.exact[k] || index.alias[k] || []).slice();
+  }
+  function kwIndex() { if (!KWI) { var K = kwAll(); KWI = _vocabCardIndex_(Object.keys(K).map(function (id) { return { id: id, en: K[id].t }; })); } return KWI; }
+  /* the reflections' words on their cards: [[id, n|r|y, ms]], and the words with no card */
+  function reflWords() {
+    var out = [], none = [], wr = P.wr && P.wr.refl ? P.wr.refl : [];
+    if (!wr.length) return { ids: out, none: none };
+    var idx = kwIndex();
+    wr.forEach(function (r) {
+      var ids = _vocabCardsFor_(r[0], idx);
+      if (!ids.length) none.push(r[0]);
+      ids.forEach(function (id) { out.push([id, r[1], +r[2] || 0]); });
+    });
+    return { ids: out, none: none };
+  }
+  /* the pupil's words now: { id: { b, at (ms), from } }, the newest choice of each, without the words taken out */
+  function myWords() {
+    var K = kwAll(), out = {}, mine = P.words || {};
+    Object.keys(mine).forEach(function (id) { var x = mine[id]; if (x) out[id] = { b: x[0], at: (+x[1] || 0) * 1000, from: x[2] || '' }; });
+    reflWords().ids.forEach(function (r) { var cur = out[r[0]]; if (!cur || cur.at < r[2]) out[r[0]] = { b: r[1], at: r[2], from: 'r' }; });
+    Object.keys(out).forEach(function (id) { if (out[id].b === 'x' || !K[id] || !/^[nry]$/.test(out[id].b)) delete out[id]; });
+    return out;
+  }
+  function mwCount(lists) { var m = myWords(); return Object.keys(m).filter(function (id) { return lists.indexOf(m[id].b) >= 0; }).length; }
+  /* one move: the time never goes backwards for a word, so two quick presses keep their order on the server too */
+  function setWord(id, b, from) {
+    if (!kwAll()[id]) return;
+    P.words = P.words || {};
+    var was = P.words[id], cur = myWords()[id], now = Math.floor(Date.now() / 1000);
+    var t = Math.min(now + 250, Math.max(now, was ? (+was[1] || 0) + 1 : 0, cur ? Math.floor(cur.at / 1000) + 1 : 0));   /* the records take no time far ahead */
+    P.words[id] = [b, t, from || (cur && cur.from) || (was && was[2]) || 'w'];
+    save(); markUnsent(true);
+    wordsDirty[id] = true; queueWords(false);
+  }
+  function toggleWord(id) {
+    var cur = myWords()[id];
+    if (cur) { setWord(id, 'x'); toast('Removed from My words.'); }
+    else { setWord(id, 'n', 'w'); toast('Added to My words: “I do not know these yet”.'); }
+    paintAdds(); paintMwLine();
+  }
+  function addBtn(id) {
+    var on = !!myWords()[id];
+    return ' <button type="button" class="mw__add" data-add="' + T.esc(id) + '" aria-pressed="' + on + '">' + (on ? '✓ In My words' : '＋ My words') + '</button>';
+  }
+  function paintAdds() {
+    var m = myWords();
+    Array.prototype.forEach.call(document.querySelectorAll('.mw__add'), function (b) {
+      var on = !!m[b.getAttribute('data-add')];
+      b.setAttribute('aria-pressed', on ? 'true' : 'false'); b.textContent = on ? '✓ In My words' : '＋ My words';
+    });
+  }
+  function paintMwLine() {
+    var el = document.getElementById('mwLine'); if (!el) return;
+    var n = Object.keys(myWords()).length;
+    el.innerHTML = 'Press <b>＋ My words</b> beside a word to learn it with your own flashcards. ' +
+      '<a class="wordslink" href="#/my">My words' + (n ? ' (' + n + ')' : '') + ' →</a>';
+  }
+  function paintMwBanner() {
+    var el = document.getElementById('mwBanner'); if (!el) return;
+    var n = mwCount(['n', 'r']);
+    el.innerHTML = n ? '<a class="review review--mw" href="#/my/cards"><b>My words · ' + n + ' to practise</b><span>Read the word, say what it means, then turn the card.</span><span class="review__go">Start →</span></a>' : '';
+  }
+  /* ---- the records: words.save and words.mine (the labs script) ---- */
+  function wordsOnList() { return !(wordsServer && wordsServer.onList === false) && !notListed(); }
+  function queueWords(now) {
+    if (!syncOn() || !me || !wordsOnList()) return;
+    if (now) { clearTimeout(wordsTimer); wordsTimer = null; flushWords(); return; }
+    if (!wordsTimer) wordsTimer = setTimeout(function () { wordsTimer = null; flushWords(); }, WORDS_SAVE_AFTER);
+  }
+  /* the server's list joins this browser's, word by word, the newest move winning (the rule words.save keeps) */
+  function adoptWords(sw) {
+    var changed = 0; P.words = P.words || {};
+    Object.keys(sw || {}).forEach(function (id) {
+      var x = sw[id], here = P.words[id];
+      if (!Array.isArray(x) || !/^[nryx]$/.test(String(x[0]))) return;
+      if (!here || (+x[1] || 0) > (+here[1] || 0)) { P.words[id] = [String(x[0]), +x[1] || 0, String(x[2] || '')]; changed++; }
+    });
+    return changed;
+  }
+  function flushWords(leaving) {
+    var ids = Object.keys(wordsDirty); if (!ids.length) return;
+    if (!me || !syncOn() || !wordsOnList()) return;
+    var c = sendCreds();
+    if (!c) { SI.renew(CID, function (v) { if (v && sendCreds()) flushWords(); else spent(); }); return; }
+    ids = ids.slice(0, 500);
+    var body = {}, sent = {};
+    ids.forEach(function (id) { if (P.words && P.words[id]) { body[id] = P.words[id]; sent[id] = P.words[id][1]; } delete wordsDirty[id]; });
+    var asked = c.email;
+    post({ action: 'words.save', token: c.token, pass: c.pass, words: body }, leaving).then(function (j) {
+      if (!me || me.email !== asked) return;
+      if (j && !j.ok && /^not on your teacher/.test(String(j.why || ''))) { wordsServer = wordsServer || {}; wordsServer.onList = false; redrawWords(); return; }
+      if (!j || !j.ok) {
+        /* a move made since stays newer; the ones sent wait for the next try */
+        Object.keys(sent).forEach(function (id) { wordsDirty[id] = true; });
+        if (j && j.why === 'not signed in') { if (c.pass && SI.dropPass) SI.dropPass(c.pass); if (!sendCreds()) { spent(); return; } }
+        clearTimeout(wordsTimer); wordsTimer = setTimeout(function () { wordsTimer = null; flushWords(); }, 60000);
+        return;
+      }
+      if (adoptWords(j.words)) save();
+      if (Object.keys(wordsDirty).length) queueWords(true);
+      else if (!Object.keys(pending).length) markUnsent(false);
+      redrawWords();
+    }).catch(function () {
+      Object.keys(sent).forEach(function (id) { wordsDirty[id] = true; });
+      clearTimeout(wordsTimer); wordsTimer = setTimeout(function () { wordsTimer = null; flushWords(); }, 60000);
+    });
+  }
+  /* asked once a page needs it, and again after ten minutes: the reflections' words, and the moves made on another computer */
+  function wantWords() {
+    if (!syncOn() || !me) return;
+    if (wordsServer && Date.now() - wordsAskedAt < 600000) return;
+    var c = sendCreds();
+    if (!c) { SI.renew(CID, function (v) { if (v && sendCreds()) wantWords(); }); return; }
+    if (wordsAsking === c.email) return;
+    var asked = wordsAsking = c.email;
+    post({ action: 'words.mine', token: c.token, pass: c.pass }).then(function (j) {
+      if (wordsAsking === asked) wordsAsking = '';
+      if (!me || me.email !== asked || !j) return;
+      if (!j.ok) { if (j.why === 'not signed in' && c.pass && SI.dropPass) SI.dropPass(c.pass); return; }
+      wordsServer = j; wordsAskedAt = Date.now();
+      if (j.onList) {
+        adoptWords(j.words);
+        P.wr = { refl: Array.isArray(j.refl) ? j.refl : [], on: !!j.reflOn, at: Date.now() };
+        /* and the other way: a move this browser made that the records do not have yet (made signed out, or not sent) */
+        Object.keys(P.words || {}).forEach(function (id) { var s = (j.words || {})[id]; if (!s || (+P.words[id][1] || 0) > (+s[1] || 0)) wordsDirty[id] = true; });
+        save();
+        if (Object.keys(wordsDirty).length) { markUnsent(true); queueWords(true); }
+      }
+      redrawWords();
+    }).catch(function () { if (wordsAsking === asked) wordsAsking = ''; });
+  }
+  /* the page that shows words is drawn again where the pupil is (never in the middle of a round of cards) */
+  function redrawWords() {
+    var hs = location.hash.replace(/^#\/?/, '');
+    if (hs === 'my') { var y = window.scrollY; viewMy(true); window.scrollTo(0, y); }
+    else if (/^w\//.test(hs)) { paintAdds(); paintMwLine(); }
+    else if (hs === '' || /^y\d+$/.test(hs)) paintMwBanner();
+  }
+  function mwDate(ms) { try { return new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); } catch (e) { return ''; } }
+  function mwNote() {
+    if (!syncOn()) return 'Your words are kept in this browser.';
+    if (!me) return 'Your words are kept on this computer only. Sign in with your school Google account (at the top of the page) to keep them on every computer and to add the words from your assessment reflections.';
+    if (!wordsServer) return 'Bringing your words…';
+    if (!wordsServer.onList) return 'You are not on a class list yet, so your words are kept on this computer only.';
+    return 'Your words are saved for you on every computer' + (wordsServer.reflOn ? ', with the words you rated in your assessment reflections.' : '.');
+  }
+  var mwOpen = null;
+  function viewMy(again) {
+    if (!again) mwOpen = null;
+    main.innerHTML = '';
+    var K = kwAll(), m = myWords(), w = h('div', 'wrap mw');
+    w.appendChild(h('a', 'back', '← Front page')).href = '#/';
+    var total = Object.keys(m).length, learn = mwCount(['n', 'r']);
+    w.appendChild(h('header', 'uhead', '<p class="eyebrow">Your keywords' + (total ? ' · ' + total + ' word' + (total === 1 ? '' : 's') : '') + '</p><h1 class="uhead__t">My words</h1>'));
+    w.appendChild(h('p', 'sec__p', 'Your own list of keywords, to learn as flashcards. Every topic’s keyword list has <b>＋ My words</b> beside each word: press it to add the word here. The words you rate in your assessment reflections come here too.'));
+    w.appendChild(h('p', 'mw__note', T.esc(mwNote())));
+    var gobox = h('div', 'mw__go');
+    if (learn) gobox.innerHTML = '<a class="btn btn--go" href="#/my/cards">Practise my words (' + learn + ')</a>' +
+      (total > learn ? '<a class="btn btn--quiet" href="#/my/cards/all">Practise all ' + total + ', with the words I know</a>' : '');
+    else if (total) gobox.innerHTML = '<a class="btn btn--go" href="#/my/cards/all">Practise all ' + total + ' again</a><span class="mw__done">You know every word in your list.</span>';
+    else {
+      var yy = P.year || (server && server.cls ? parseInt(String(server.cls).match(/\d+/) || '', 10) : 0) || (META.years[0] && META.years[0].y) || '';
+      gobox.innerHTML = '<p class="sec__p">You have no words yet. Open a topic, then <b>All the keywords of this topic</b>, and press <b>＋ My words</b> beside a word.</p><a class="btn" href="#/y' + T.esc(String(yy)) + '">Choose a topic</a>';
+    }
+    w.appendChild(gobox);
+    if (total) {
+      var cols = h('div', 'wcols');
+      MW_LISTS.forEach(function (L) {
+        var ids = Object.keys(m).filter(function (id) { return m[id].b === L[0]; }).sort(function (a, b) { return String(K[a].t).localeCompare(String(K[b].t)); });
+        var col = h('section', 'wcol wcol--' + L[0]);
+        col.appendChild(h('h2', 'wcol__h', '<span>' + T.esc(L[1]) + '</span><span class="wcol__n">' + ids.length + '</span>'));
+        var box = h('div', 'wcol__w');
+        box.innerHTML = ids.length ? ids.map(function (id) { return '<button type="button" class="mw__w" data-w="' + T.esc(id) + '" aria-expanded="' + (mwOpen === id) + '">' + T.esc(sayTerm(K[id].t)) + '</button>'; }).join('') : '<span class="mw__none">None</span>';
+        col.appendChild(box);
+        cols.appendChild(col);
+      });
+      w.appendChild(cols);
+      var card = h('div', 'mw__open'); card.id = 'mwOpen'; w.appendChild(card);
+      var none = reflWords().none;
+      if (none.length) w.appendChild(h('p', 'mw__also', 'Also in your reflections, but not in the keyword list: ' + T.esc(none.join(', ')) + '.'));
+      cols.addEventListener('click', function (e) {
+        var b = e.target.closest('.mw__w'); if (!b) return;
+        mwOpen = mwOpen === b.getAttribute('data-w') ? null : b.getAttribute('data-w');
+        Array.prototype.forEach.call(cols.querySelectorAll('.mw__w'), function (x) { x.setAttribute('aria-expanded', x.getAttribute('data-w') === mwOpen ? 'true' : 'false'); });
+        paintOpen();
+      });
+    }
+    main.appendChild(w);
+    paintOpen();
+    if (!again) wantWords();
+  }
+  /* one word open at a time, under the lists: what it means, its sounds, where it came from, and the moves */
+  function paintOpen() {
+    var el = document.getElementById('mwOpen'); if (!el) return;
+    var K = kwAll(), m = myWords(), x = mwOpen && K[mwOpen], cur = mwOpen && m[mwOpen];
+    if (!x || !cur) { el.innerHTML = ''; return; }
+    var from = cur.from === 'r' ? 'From your assessment reflection' + (cur.at ? ' (the assessment of ' + T.esc(mwDate(cur.at)) + ')' : '') + '.'
+             : cur.from === 'w' ? 'You added it from a topic’s keyword list.' : '';
+    el.innerHTML = '<div class="mwc"><h3 class="mwc__t">' + T.esc(x.t) + (x.ko && CFG.koreanGloss !== false ? ' <span class="words__ko" lang="ko">' + T.esc(x.ko) + '</span>' : '') + '</h3>' +
+      (window.Say ? window.Say.html(sayTerm(x.t)) : '') +
+      '<p class="mwc__d">' + T.esc(x.d) + '<span class="words__kodef kogloss" lang="ko" data-kid="' + T.esc(x.id) + '" hidden></span></p>' +
+      '<p class="mwc__f">' + (x.n ? 'Topic ' + T.esc(x.n) + (x.uid ? ' · <a href="#/w/' + T.esc(x.uid) + '">its keyword list</a>' : '') + '. ' : '') + from + '</p>' +
+      '<div class="mwc__mv" role="group" aria-label="Move this word">' + [['y', '✓ I know it'], ['r', '~ I partly know it'], ['n', '✕ I do not know it']].map(function (o) {
+        return '<button type="button" class="btn mwc__b" data-mv="' + o[0] + '" aria-pressed="' + (cur.b === o[0]) + '">' + o[1] + '</button>'; }).join('') +
+      '<button type="button" class="btn btn--quiet mwc__x" data-mv="x">Remove from My words</button></div></div>';
+    paintKo(el);
+    el.querySelector('.mwc__mv').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-mv]'); if (!b) return;
+      var mv = b.getAttribute('data-mv'), id = mwOpen;
+      setWord(id, mv);
+      if (mv === 'x') { mwOpen = null; toast('Removed from My words.'); }
+      var y = window.scrollY; viewMy(true); window.scrollTo(0, y);
+    });
+  }
+
+  /* ---- the flashcards ---- */
+  var FC = null;
+  function viewCards(all) {
+    main.innerHTML = '';
+    var m = myWords(), order = all ? ['n', 'r', 'y'] : ['n', 'r'];
+    var q = [];
+    order.forEach(function (b) {
+      var ids = Object.keys(m).filter(function (id) { return m[id].b === b; });
+      for (var i = ids.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = ids[i]; ids[i] = ids[j]; ids[j] = t; }
+      q = q.concat(ids);
+    });
+    FC = { q: q, all: all, seen: {}, last: {}, n: q.length, up: false };
+    var w = h('div', 'wrap mw fcw');
+    w.appendChild(h('a', 'back', '← My words')).href = '#/my';
+    w.appendChild(h('header', 'uhead', '<p class="eyebrow">My words · flashcards</p><h1 class="uhead__t">Say what it means</h1>'));
+    w.appendChild(h('p', 'sec__p', 'Read the word and say what it means, aloud or in your head. Then turn the card and check. A word you did not know comes again later in the round.'));
+    var stage = h('div', 'fc__stage'); stage.id = 'fcStage'; w.appendChild(stage);
+    main.appendChild(w);
+    if (!q.length) { stage.innerHTML = '<p class="sec__p">There are no words to practise. <a class="wordslink" href="#/my">My words →</a></p>'; return; }
+    paintCard();
+  }
+  function paintCard() {
+    var st = document.getElementById('fcStage'); if (!st || !FC) return;
+    var K = kwAll();
+    if (!FC.q.length) {
+      var c = { y: 0, r: 0, n: 0 }; Object.keys(FC.last).forEach(function (id) { c[FC.last[id]]++; });
+      st.innerHTML = '<div class="fc fc--end"><h2 class="fc__end">Round done</h2><p class="sec__p">You practised ' + FC.n + ' word' + (FC.n === 1 ? '' : 's') + '. ' +
+        '<span class="fc__k fc__k--y">✓ ' + c.y + ' you knew</span> <span class="fc__k fc__k--r">~ ' + c.r + ' you partly knew</span> <span class="fc__k fc__k--n">✕ ' + c.n + ' you did not know</span></p>' +
+        '<p class="sec__p">Each word is now in the list you chose for it.</p>' +
+        '<div class="mw__go"><button type="button" class="btn btn--go" id="fcAgain">Practise again</button><a class="btn btn--quiet" href="#/my">Back to My words</a></div></div>';
+      document.getElementById('fcAgain').addEventListener('click', function () { viewCards(FC.all); });
+      queueWords(true);
+      return;
+    }
+    var id = FC.q[0], x = K[id];
+    if (!x) { FC.q.shift(); paintCard(); return; }
+    FC.up = false;
+    st.innerHTML = '<p class="fc__left">' + FC.q.length + ' card' + (FC.q.length === 1 ? '' : 's') + ' left</p>' +
+      '<div class="fc" id="fcCard" role="button" tabindex="0" aria-label="' + T.esc(sayTerm(x.t)) + ': turn the card">' +
+      '<p class="fc__topic">' + (x.n ? 'Topic ' + T.esc(x.n) : 'Keyword') + (x.sup ? ' · Supplement' : '') + (x.ib ? ' · beyond 0610' : '') + '</p>' +
+      '<p class="fc__term">' + T.esc(x.t) + '</p>' +
+      (window.Say ? window.Say.html(sayTerm(x.t)) : '') +
+      '<div class="fc__back" id="fcBack" hidden><p class="fc__d">' + T.esc(x.d) + '</p>' +
+        (x.ko && CFG.koreanGloss !== false ? '<p class="fc__ko" lang="ko">' + T.esc(x.ko) + '</p>' : '') +
+        '<p class="fc__kodef kogloss" lang="ko" data-kid="' + T.esc(x.id) + '" hidden></p></div>' +
+      '<button type="button" class="btn btn--go fc__turn" id="fcTurn">Turn the card</button>' +
+      '</div>' +
+      '<div class="fc__rate" id="fcRate" role="group" aria-label="How well did you know it?" hidden>' +
+        '<button type="button" class="btn fc__r fc__r--y" data-r="y">✓ I knew it</button>' +
+        '<button type="button" class="btn fc__r fc__r--r" data-r="r">~ I partly knew it</button>' +
+        '<button type="button" class="btn fc__r fc__r--n" data-r="n">✕ I did not know it</button></div>';
+    var card = document.getElementById('fcCard');
+    function turn() {
+      if (FC.up) return; FC.up = true;
+      document.getElementById('fcBack').hidden = false; document.getElementById('fcTurn').hidden = true;
+      document.getElementById('fcRate').hidden = false; card.setAttribute('aria-label', sayTerm(x.t)); card.removeAttribute('role'); card.removeAttribute('tabindex');
+      paintKo(card);
+      var first = document.querySelector('#fcRate .fc__r'); if (first) try { first.focus({ preventScroll: true }); } catch (e) { first.focus(); }
+      try { document.getElementById('fcRate').scrollIntoView({ block: 'nearest' }); } catch (e) {}   /* on a phone the answers are under the card */
+    }
+    card.addEventListener('click', function (e) { if (e.target.closest('a')) return; turn(); });
+    card.addEventListener('keydown', function (e) { if ((e.key === 'Enter' || e.key === ' ') && !FC.up && e.target === card) { e.preventDefault(); turn(); } });
+    document.getElementById('fcRate').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-r]'); if (!b || !FC.up) return;
+      var r = b.getAttribute('data-r');
+      setWord(id, r);
+      FC.last[id] = r; FC.seen[id] = (FC.seen[id] || 0) + 1;
+      FC.q.shift();
+      if (r === 'n' && FC.seen[id] < 3) FC.q.splice(Math.min(3, FC.q.length), 0, id);
+      else if (r === 'r' && FC.seen[id] < 2) FC.q.push(id);
+      paintCard();
+      var nc = document.getElementById('fcCard'); if (nc) try { nc.focus({ preventScroll: true }); } catch (e2) { nc.focus(); }
+    });
+  }
+
   /* ============================================================
      ROUTING
      ============================================================ */
@@ -1246,6 +1625,7 @@
     else if (p[0] === 'w' && p[1]) { viewWords(p[1]); }
     else if (p[0] === 'review') { viewReview(); }
     else if (p[0] === 'roots') { viewRoots(); }
+    else if (p[0] === 'my') { if (p[1] === 'cards') viewCards(p[2] === 'all'); else viewMy(); }
     else if (p[0] === 'commands') { viewGuide(p[1] ? decodeURIComponent(p[1]) : ''); }
     else if (/^y\d+$/.test(p[0])) { viewHome(parseInt(p[0].slice(1), 10)); }
     else { viewHome(null); }

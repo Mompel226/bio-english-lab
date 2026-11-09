@@ -28,6 +28,7 @@ topic by topic, with the keywords every answer needs.
 | **Practise by topic** | Year 9, 10 and 11, organised as NLCS teaches them. Every topic has keyword, describe and explain sets, and most have a plan set too. |
 | **Learn where the words come from** | Every topic has an etymology set: the Greek and Latin parts its keywords are built from (*cardi-* heart, *hepat-* liver, *-cyte* cell), and new words to work out from them. Every part was checked in a dictionary, and the answer names it. |
 | **Answer without free writing** | Choose the answer that scores, choose the right words, build the sentence from pieces, fix weak words, cut the words that score nothing, put a chain in order, type the keyword, mark an answer as the examiner would, then answer a real exam question step by step: think, order, write. |
+| **Keep your own flashcards** | **My words**: press ＋ beside any word on a topic's keyword list, and the words you rate in your assessment reflections come too. Practise them as flashcards: the word with its UK and US sounds from the Cambridge Dictionary, then what it means; each answer puts the word in *I do not know these yet*, *I partly know these* or *I know these*. Signed in, the list is the same on every computer. |
 | **See the model answer** | One line, one mark, with the keyword, the direction, the comparison, the data and the link each in their own colour. |
 
 > [!NOTE]
@@ -44,6 +45,11 @@ English sets. Students who sign in with their school Google account are recorded
 
 The keyword definitions are the same list as the flashcards in the reflection system's student
 dashboard, so the two never teach a word two ways.
+
+The 🔊 UK and US buttons play the Cambridge Dictionary's own recordings straight from
+dictionary.cambridge.org, with a link to each word's page there: none of them is stored here, and they are
+© Cambridge University Press & Assessment, not covered by this site's licences. The few Wikimedia Commons
+recordings it falls back on are in `assets/say/`, each under its own licence (`assets/say/CREDITS.md`).
 
 <details>
 <summary><b>Behind the scenes</b> — how this works, in plain English</summary>
