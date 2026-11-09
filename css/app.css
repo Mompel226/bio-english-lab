@@ -707,6 +707,16 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
 /* one card at a time: the word and its sounds; turned, what it means; then how well they knew it */
 .fc__stage { max-width: 640px; margin: 18px 0 40px; }
 .fc__left { font: 500 12px/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+/* moving between cards without answering (9 Nov 2026): ← Back · N cards left · Next card →, and how far the round has come */
+.fc__nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 8px; }
+.fc__nav .fc__left { margin: 0; text-align: center; }
+.fc__nb { font: inherit; font-size: 14.5px; font-weight: 600; color: var(--ink-2); background: var(--card); border: 1px solid var(--rule); border-radius: 999px; padding: 8px 15px; cursor: pointer; white-space: nowrap; }
+.fc__nb:hover:not(:disabled), .fc__nb:focus-visible { border-color: var(--green-2); color: var(--green); }
+.fc__nb:disabled { opacity: .4; cursor: default; }
+.fc__bar { height: 5px; border-radius: 99px; background: var(--rule-2); overflow: hidden; margin: 0 0 12px; }
+.fc__bar i { display: block; height: 100%; border-radius: 99px; background: var(--green-2); transition: width .3s; }
+.fc { touch-action: pan-y; }
+.fc__lab { font: 500 11px/1.2 var(--mono); letter-spacing: .08em; color: var(--muted); margin-right: 6px; vertical-align: 2px; }
 .fc { background: var(--card); border: 1px solid var(--rule); border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 22px 22px 20px; min-height: 240px; display: flex; flex-direction: column; }
 .fc[role="button"] { cursor: pointer; }
 .fc__topic { font: 500 12px/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0; }

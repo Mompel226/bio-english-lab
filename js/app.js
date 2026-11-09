@@ -965,7 +965,7 @@
   function hasWork() { return Object.keys(P.sets).some(function (sid) { var r = P.sets[sid]; return r && ((r.items && Object.keys(r.items).length) || goOf(r) > 1); }) ||
     !!(P.words && Object.keys(P.words).length); }
   /* the pupil's words (P.words, P.wr) go with the rest: they belong to the same pupil (My words, 9 Nov 2026) */
-  function clearHere() { P = { sets: {}, year: P.year }; save(); pending = {}; wordsDirty = {}; wordsServer = null; markUnsent(false); }
+  function clearHere() { P = { sets: {}, year: P.year }; save(); pending = {}; wordsServer = null; markUnsent(false); }
   /* Whose work THIS page holds in memory: the stored owner it was loaded with, then each pupil it is claimed for; a
      sign-out never clears it. Two tabs of the site share the stored owner, so another tab that has already claimed this
      browser for the next pupil hid the last pupil's work still in this page's memory, and it was sent with the next
@@ -1150,15 +1150,15 @@
           clearTimeout(syncTimer); syncTimer = setTimeout(function () { syncTimer = null; flush(); }, 60000);
           if (j && j.why && j.why !== 'not signed in') toast('Your progress was not recorded: ' + j.why);
         }
-        else { setSync('saved'); if (!Object.keys(pending).length && !Object.keys(wordsDirty).length && gen === answeredGen) markUnsent(false); }
+        else { setSync('saved'); if (!Object.keys(pending).length && !Object.keys(WD()).length && gen === answeredGen) markUnsent(false); }
       })
       .catch(function () {
         ids.forEach(function (s) { pending[s] = true; }); setSync('failed');
         clearTimeout(syncTimer); syncTimer = setTimeout(function () { syncTimer = null; flush(); }, 60000);   /* "will retry" is true */
       });
   }
-  addEventListener('pagehide', function () { if (Object.keys(pending).length) flush(true); if (Object.keys(wordsDirty).length) flushWords(true); });
-  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && Object.keys(pending).length) flush(true); if (document.visibilityState === 'hidden' && Object.keys(wordsDirty).length) flushWords(true); });
+  addEventListener('pagehide', function () { if (Object.keys(pending).length) flush(true); if (Object.keys(WD()).length) flushWords(true); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && Object.keys(pending).length) flush(true); if (document.visibilityState === 'hidden' && Object.keys(WD()).length) flushWords(true); if (document.visibilityState === 'visible') wantWords(); });
   var mineAsking = '';     /* the account a records call is out for: one call at a time, and an answer for another account is dropped */
   function fetchMine() {
     if (!syncOn() || !me) return;
@@ -1257,7 +1257,8 @@
                   word first came from: "w" a topic's keyword list (＋), "r" a reflection. Kept in this browser with the rest
                   of P (so a shared computer's next pupil never inherits it: claimFor, clearHere) and, signed in, in the labs
                   script (words.save / words.mine; the ✍️ Bio English tab's My words column), so every computer has it.
-       · P.wr     { refl: [[word as written, n|r|y, when (ms)]], on, at }: the words their reflections rated, as words.mine
+       · P.wd     { <keyword id>: true }: the moves not yet in the records (sent next time if the page closed first).
+       · P.wr     { refl: [[word as written, n|r|y, when (ms)]], on, at, who, onList, skew }: the words their reflections rated, as words.mine
                   read them from the Student Progress Tracker (kept here for the next visit; asked again after ten minutes).
      A reflection's word goes on its keyword card by _vocabCardIndex_/_vocabCardsFor_ below: a COPY of the reflection's
      own (its Code.gs; harness check_vocab_lists.mjs keeps the two the same), over EVERY keyword (the topic pages' and
@@ -1270,7 +1271,18 @@
      the end, so the round ends with the words they know.
      ============================================================ */
   var MW_LISTS = [['n', 'I do not know these yet'], ['r', 'I partly know these'], ['y', 'I know these']];
-  var wordsDirty = {}, wordsTimer = null, wordsServer = null, wordsAsking = '', wordsAskedAt = 0, WORDS_SAVE_AFTER = 30000;
+  /* Quick, and few reads (the audit of 9 Nov 2026; Daniel: "readily and quickly saved … resyncing with the spreadsheet, but that
+     doesn't happen all the time"): a move goes to the records 3 s later at most (later moves join it), and as the page is
+     hidden or left; the moves not yet sent are kept with P (P.wd), so a page closed too soon sends them next time; a failure
+     tries again 30 s later and says so. words.mine is asked when this browser has not asked for ten minutes (P.wr.at, kept
+     with P, so a new page or a reload does not ask again), for another account, after the browser was emptied (cookies
+     cleared: everything comes back from the records), or when a lab saved a move since ("biology.mywords.saved", { who, t,
+     by }: each side writes it after a save, the other reads it). Times use the server's clock (P.wr.skew). */
+  var wordsTimer = null, wordsServer = null, wordsAsking = '', wordsAskedAt = 0, WORDS_SAVE_AFTER = 3000, wordsFailed = false, WORDS_SAID = 'biology.mywords.saved';
+  function WD() { if (!P.wd || typeof P.wd !== 'object' || Array.isArray(P.wd)) P.wd = {}; return P.wd; }   /* the moves not yet in the records */
+  function wordsSaid() { try { var o = JSON.parse(localStorage.getItem(WORDS_SAID) || 'null'); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } }
+  /* seconds to add to this computer's clock (the server's `now`); under two minutes counts as none */
+  function wordsSkew(j) { var k = j && j.now > 1500000000 ? Math.round(j.now - Date.now() / 1000) : 0; return Math.abs(k) < 120 ? 0 : k; }
   var KWX = null, KWI = null;
   /* every keyword the site has, by id: the topic pages' lists, then the ones on no topic page */
   function kwAll() {
@@ -1354,11 +1366,11 @@
   function setWord(id, b, from) {
     if (!kwAll()[id]) return;
     P.words = P.words || {};
-    var was = P.words[id], cur = myWords()[id], now = Math.floor(Date.now() / 1000);
+    var was = P.words[id], cur = myWords()[id], now = Math.floor(Date.now() / 1000) + ((P.wr && P.wr.skew) || 0);
     var t = Math.min(now + 250, Math.max(now, was ? (+was[1] || 0) + 1 : 0, cur ? Math.floor(cur.at / 1000) + 1 : 0));   /* the records take no time far ahead */
     P.words[id] = [b, t, from || (cur && cur.from) || (was && was[2]) || 'w'];
-    save(); markUnsent(true);
-    wordsDirty[id] = true; queueWords(false);
+    WD()[id] = true; save(); markUnsent(true);   /* the move and its "not sent yet" kept together */
+    queueWords(false);
   }
   function toggleWord(id) {
     var cur = myWords()[id];
@@ -1406,37 +1418,47 @@
     return changed;
   }
   function flushWords(leaving) {
-    var ids = Object.keys(wordsDirty); if (!ids.length) return;
+    var ids = Object.keys(WD()); if (!ids.length) return;
     if (!me || !syncOn() || !wordsOnList()) return;
     var c = sendCreds();
     if (!c) { SI.renew(CID, function (v) { if (v && sendCreds()) flushWords(); else spent(); }); return; }
     ids = ids.slice(0, 500);
     var body = {}, sent = {};
-    ids.forEach(function (id) { if (P.words && P.words[id]) { body[id] = P.words[id]; sent[id] = P.words[id][1]; } delete wordsDirty[id]; });
+    ids.forEach(function (id) { if (P.words && P.words[id]) { body[id] = P.words[id]; sent[id] = P.words[id][1]; } delete WD()[id]; });
     var asked = c.email;
     post({ action: 'words.save', token: c.token, pass: c.pass, words: body }, leaving).then(function (j) {
       if (!me || me.email !== asked) return;
       if (j && !j.ok && /^not on your teacher/.test(String(j.why || ''))) { wordsServer = wordsServer || {}; wordsServer.onList = false; redrawWords(); return; }
       if (!j || !j.ok) {
         /* a move made since stays newer; the ones sent wait for the next try */
-        Object.keys(sent).forEach(function (id) { wordsDirty[id] = true; });
+        Object.keys(sent).forEach(function (id) { WD()[id] = true; }); save(); wordsFailed = true;
         if (j && j.why === 'not signed in') { if (c.pass && SI.dropPass) SI.dropPass(c.pass); if (!sendCreds()) { spent(); return; } }
-        clearTimeout(wordsTimer); wordsTimer = setTimeout(function () { wordsTimer = null; flushWords(); }, 60000);
-        return;
+        clearTimeout(wordsTimer); wordsTimer = setTimeout(function () { wordsTimer = null; flushWords(); }, 30000);
+        redrawWords(); return;
       }
-      if (adoptWords(j.words)) save();
-      if (Object.keys(wordsDirty).length) queueWords(true);
+      adoptWords(j.words); wordsFailed = false;
+      if (P.wr) P.wr.skew = wordsSkew(j) || P.wr.skew || 0;
+      save();
+      try { localStorage.setItem(WORDS_SAID, JSON.stringify({ who: asked.toLowerCase(), t: Date.now(), by: 'en' })); } catch (eS) {}
+      if (Object.keys(WD()).length) queueWords(false);
       else if (!Object.keys(pending).length) markUnsent(false);
       redrawWords();
     }).catch(function () {
-      Object.keys(sent).forEach(function (id) { wordsDirty[id] = true; });
-      clearTimeout(wordsTimer); wordsTimer = setTimeout(function () { wordsTimer = null; flushWords(); }, 60000);
+      Object.keys(sent).forEach(function (id) { WD()[id] = true; }); save(); wordsFailed = true;
+      clearTimeout(wordsTimer); wordsTimer = setTimeout(function () { wordsTimer = null; flushWords(); }, 30000);
+      redrawWords();
     });
   }
-  /* asked once a page needs it, and again after ten minutes: the reflections' words, and the moves made on another computer */
+  /* asked once a page needs it, and again after ten minutes: the reflections' words, and the moves made on another computer;
+     not again within ten minutes, even after a reload, unless a lab saved a move since (the list in this browser is right) */
   function wantWords() {
     if (!syncOn() || !me) return;
-    if (wordsServer && Date.now() - wordsAskedAt < 600000) return;
+    var em = String(me.email || '').toLowerCase(), wr = P.wr || {}, k = wordsSaid();
+    if (wr.who === em && wr.at && Date.now() - wr.at < 600000 && !(k.who === em && k.by !== 'en' && +k.t > wr.at)) {
+      if (!wordsServer) wordsServer = { ok: true, onList: wr.onList !== false, reflOn: !!wr.on, kept: 1 };
+      if (Object.keys(WD()).length) { markUnsent(true); queueWords(false); }   /* moves a page closed too soon could not send */
+      return;
+    }
     var c = sendCreds();
     if (!c) { SI.renew(CID, function (v) { if (v && sendCreds()) wantWords(); }); return; }
     if (wordsAsking === c.email) return;
@@ -1446,13 +1468,15 @@
       if (!me || me.email !== asked || !j) return;
       if (!j.ok) { if (j.why === 'not signed in' && c.pass && SI.dropPass) SI.dropPass(c.pass); return; }
       wordsServer = j; wordsAskedAt = Date.now();
+      P.wr = { refl: j.onList && Array.isArray(j.refl) ? j.refl : [], on: !!j.reflOn, at: Date.now(), who: String(asked).toLowerCase(), onList: !!j.onList, skew: wordsSkew(j) };
+      if (!j.onList) save();
       if (j.onList) {
         adoptWords(j.words);
-        P.wr = { refl: Array.isArray(j.refl) ? j.refl : [], on: !!j.reflOn, at: Date.now() };
+        adoptWords(j.moves);   /* part 3: the moves made on My assessments (the tracker); a newer one wins, and goes to the records below */
         /* and the other way: a move this browser made that the records do not have yet (made signed out, or not sent) */
-        Object.keys(P.words || {}).forEach(function (id) { var s = (j.words || {})[id]; if (!s || (+P.words[id][1] || 0) > (+s[1] || 0)) wordsDirty[id] = true; });
+        Object.keys(P.words || {}).forEach(function (id) { var s = (j.words || {})[id]; if (!s || (+P.words[id][1] || 0) > (+s[1] || 0)) WD()[id] = true; });
         save();
-        if (Object.keys(wordsDirty).length) { markUnsent(true); queueWords(true); }
+        if (Object.keys(WD()).length) { markUnsent(true); queueWords(true); }
       }
       redrawWords();
     }).catch(function () { if (wordsAsking === asked) wordsAsking = ''; });
@@ -1470,6 +1494,7 @@
     if (!me) return 'Your words are kept on this computer only. Sign in with your school Google account (at the top of the page) to keep them on every computer and to add the words from your assessment reflections.';
     if (!wordsServer) return 'Bringing your words…';
     if (!wordsServer.onList) return 'You are not on a class list yet, so your words are kept on this computer only.';
+    if (wordsFailed && Object.keys(WD()).length) return 'Not saved yet: it will try again.';
     return 'Your words are saved for you on every computer' + (wordsServer.reflOn ? ', with the words you rated in your assessment reflections.' : '.');
   }
   var mwOpen = null;
@@ -1544,6 +1569,19 @@
 
   /* ---- the flashcards ---- */
   var FC = null;
+  /* Moving between cards without answering (Daniel, 9 Nov 2026: "I should be able to move to the next card without revealing
+     it … there's no way for you to move without answering that"): ← Back and Next card →, the ← → keys, or a swipe across the
+     card. The round's cards turn like a wheel: a card passed over comes again, and nothing is saved for it. */
+  function navFC(d) {
+    if (!FC || FC.q.length < 2 || !document.getElementById('fcCard')) return;
+    if (d > 0) FC.q.push(FC.q.shift()); else FC.q.unshift(FC.q.pop());
+    paintCard();
+    var nc = document.getElementById('fcCard'); if (nc) try { nc.focus({ preventScroll: true }); } catch (e) { nc.focus(); }
+  }
+  document.addEventListener('keydown', function (e) {
+    if ((e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') || !FC || !document.getElementById('fcCard') || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    e.preventDefault(); navFC(e.key === 'ArrowRight' ? 1 : -1);
+  });
   function viewCards(all) {
     main.innerHTML = '';
     var m = myWords(), order = all ? ['n', 'r', 'y'] : ['n', 'r'];
@@ -1579,13 +1617,17 @@
     var id = FC.q[0], x = K[id];
     if (!x) { FC.q.shift(); paintCard(); return; }
     FC.up = false;
-    st.innerHTML = '<p class="fc__left">' + FC.q.length + ' card' + (FC.q.length === 1 ? '' : 's') + ' left</p>' +
+    var one = FC.q.length < 2 ? ' disabled' : '', pct = Math.round(100 * Math.max(0, FC.n - FC.q.length) / Math.max(1, FC.n));
+    st.innerHTML = '<div class="fc__nav"><button type="button" class="fc__nb" data-nav="-1" aria-label="The card before"' + one + '>← Back</button>' +
+        '<p class="fc__left">' + FC.q.length + ' card' + (FC.q.length === 1 ? '' : 's') + ' left</p>' +
+        '<button type="button" class="fc__nb" data-nav="1" aria-label="The next card, without answering this one"' + one + '>Next card →</button></div>' +
+      '<div class="fc__bar" aria-hidden="true"><i style="width:' + pct + '%"></i></div>' +
       '<div class="fc" id="fcCard" role="button" tabindex="0" aria-label="' + T.esc(sayTerm(x.t)) + ': turn the card">' +
       '<p class="fc__topic">' + (x.n ? 'Topic ' + T.esc(x.n) : x.gl ? 'The labs’ glossary' : 'Keyword') + (x.sup ? ' · Supplement' : '') + (x.ib ? ' · beyond 0610' : '') + '</p>' +
       '<p class="fc__term">' + T.esc(x.t) + '</p>' +
       (window.Say ? window.Say.html(sayTerm(x.t)) : '') +
       '<div class="fc__back" id="fcBack" hidden><p class="fc__d">' + T.esc(x.d) + '</p>' +
-        (x.ko && CFG.koreanGloss !== false ? '<p class="fc__ko" lang="ko">' + T.esc(x.ko) + '</p>' : '') +
+        (x.ko && CFG.koreanGloss !== false ? '<p class="fc__ko"><span class="fc__lab">한국어</span> <span lang="ko">' + T.esc(x.ko) + '</span></p>' : '') +
         '<p class="fc__kodef kogloss" lang="ko" data-kid="' + T.esc(x.id) + '" hidden></p></div>' +
       '<button type="button" class="btn btn--go fc__turn" id="fcTurn">Turn the card</button>' +
       '</div>' +
@@ -1602,7 +1644,17 @@
       var first = document.querySelector('#fcRate .fc__r'); if (first) try { first.focus({ preventScroll: true }); } catch (e) { first.focus(); }
       try { document.getElementById('fcRate').scrollIntoView({ block: 'nearest' }); } catch (e) {}   /* on a phone the answers are under the card */
     }
-    card.addEventListener('click', function (e) { if (e.target.closest('a')) return; turn(); });
+    var swipe = null, swiped = 0;
+    st.querySelectorAll('[data-nav]').forEach(function (b) { b.addEventListener('click', function () { navFC(+b.getAttribute('data-nav')); }); });
+    card.addEventListener('pointerdown', function (e) { swipe = { x: e.clientX, y: e.clientY }; });
+    card.addEventListener('pointerup', function (e) {
+      if (!swipe) return; var dx = e.clientX - swipe.x, dy = e.clientY - swipe.y; swipe = null;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > 1.5 * Math.abs(dy)) { swiped = Date.now(); navFC(dx < 0 ? 1 : -1); }   /* to the left: the next card */
+    });
+    card.addEventListener('click', function (e) {
+      if (swiped && Date.now() - swiped < 400) { swiped = 0; return; }   /* the end of a swipe is not a press (that one click only) */
+      if (e.target.closest('a')) return; turn();
+    });
     card.addEventListener('keydown', function (e) { if ((e.key === 'Enter' || e.key === ' ') && !FC.up && e.target === card) { e.preventDefault(); turn(); } });
     document.getElementById('fcRate').addEventListener('click', function (e) {
       var b = e.target.closest('[data-r]'); if (!b || !FC.up) return;

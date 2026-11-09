@@ -40,6 +40,19 @@
    uses it too, on My words' flashcards and its keyword pages: its tools/build.mjs copies this file. Its keywords that
    Cambridge pronounces on their own page joined the list (186 words, each read the same way, each recording 0.45–3 s),
    with no spelling guide yet (""): a word's buttons only.
+   THE IB VIEW "FROM GLUCOSE TO ATP" (the game's js/ib/view.js and its own page glucose-to-atp/; Daniel, 9 Nov 2026:
+   "find the audios from the Cambridge website for all words here ... hydrophobic ... when I click on it, it doesn't allow
+   me the option to listen to it. So it'd be nice to have that the IB words too"): each of its 45 key words' meanings has
+   the game's lines. Its words joined the list that day, read the same way (each recording 0.68–2.65 s): matrix,
+   hydrophilic, glycoprotein, ligand, ATP, coenzyme, phosphate, oxidative, concentration, intermembrane, transporter. No
+   Cambridge page (spelling guide only, unless Commons has a clear recording): cytosol, glycolysis, pyruvate,
+   phosphorylation, cristae (only crista, a different word), decarboxylation, chemiosmosis, kinase, exocytosis,
+   endocytosis, synthase, triose, NAD, FAD (Cambridge's "fad" is another word: never play it), Krebs cycle, facilitated
+   (only "facilitate"); lactate's page is the verb "to produce milk", stressed lak-TAYT in British English, not the
+   chemistry noun LAK-tayt, so it is refused. Four of them have a Wikimedia Commons recording instead (Daniel's "Yes,
+   download", 9 Nov 2026), each clear by the rules in audio/CREDITS.md: exocytosis, endocytosis, kinase, and lactate the
+   noun; the others keep their spelling guide and have no button. A page one folder down (glucose-to-atp/) loads ../js/say.js: DIR, the
+   Commons folder, is worked out from this file's own address.
    ============================================================ */
 (function (global) {
   'use strict';
@@ -50,7 +63,8 @@
     var st = document.createElement('style'); st.id = 'say-css'; st.textContent = CSS;
     (document.head || document.documentElement).appendChild(st);
   }
-  var DIR = 'assets/say/';
+  /* the Commons recordings: assets/say/ beside this file's folder (js/say.js → assets/say/), wherever the page is */
+  var DIR = (function () { try { var s = document.currentScript && document.currentScript.src; if (s) return new URL('../assets/say/', s).href; } catch (e) {} return 'assets/say/'; })();
   /* word: [spelling guide, { uk / us: [speaker, licence, its Commons page] }] */
   var W = {
     "allele": ["uh-LEEL (UK also AL-eel)", {"us": ["Wodencafe", "CC0", "https://commons.wikimedia.org/wiki/File:LL-Q1860_%28eng%29-Wodencafe-allele.wav"]}],
@@ -319,7 +333,7 @@
     "histone": ["HIS-tohn", {}],
     "centrosome": ["SEN-truh-sohm", {}],
     "lysosome": ["LY-suh-sohm", {"uk": ["Vealhurl", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:LL-Q1860_%28eng%29-Vealhurl-lysosome.wav"]}],
-    "exocytosis": ["ek-soh-sy-TOH-sis", {}],
+    "exocytosis": ["ek-soh-sy-TOH-sis", {"en": ["Neøn", "CC0", "https://commons.wikimedia.org/wiki/File:LL-Q1860_%28eng%29-Ne%C3%B8n-exocytosis.wav"]}],
     "Golgi": ["GOL-jee (US GOHL-jee)", {}],
     "cristae": ["KRIS-tee", {}],
     "intermembrane": ["in-tuh-MEM-brayn", {}],
@@ -333,6 +347,23 @@
     "dehydrogenation": ["dee-hy-druh-juh-NAY-shun", {"en": ["Yangolin", "CC0", "https://commons.wikimedia.org/wiki/File:LL-Q1860_%28eng%29-Yangolin-dehydrogenation.wav"]}],
     "facilitated": ["fuh-SIL-ih-tay-tid", {}],
     "phospholipid": ["fos-foh-LIP-id", {"en": ["Sapaa", "CC0", "https://commons.wikimedia.org/wiki/File:LL-Q1860_%28eng%29-Sapaa-phospholipid.wav"]}],
+    /* 9 Nov 2026: the IB view's own words (Daniel: "the IB words too") */
+    "matrix": ["MAY-triks", {}],
+    "hydrophilic": ["hy-droh-FIL-ik", {}],
+    "glycoprotein": ["gly-koh-PROH-teen", {}],
+    "ligand": ["LIG-und", {}],
+    "ATP": ["ay-tee-PEE", {}],
+    "coenzyme": ["koh-EN-zime", {}],
+    "phosphate": ["FOS-fayt", {}],
+    "oxidative": ["ok-SID-uh-tiv (US OK-sih-day-tiv)", {}],
+    "concentration": ["kon-sun-TRAY-shun", {}],
+    "transporter": ["tran-SPOR-tuh", {}],
+    "lactate": ["LAK-tayt", {"uk": ["Vealhurl", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:LL-Q1860_%28eng%29-Vealhurl-lactate1.wav"]}],
+    "kinase": ["KY-nayz or KIN-ayz", {"uk": ["Vealhurl", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:LL-Q1860_%28eng%29-Vealhurl-kinase.wav"]}],
+    "endocytosis": ["en-doh-sy-TOH-sis", {"uk": ["Vealhurl", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:LL-Q1860_%28eng%29-Vealhurl-endocytosis.wav"]}],
+    "triose": ["TRY-ohz", {}],
+    "NAD": ["en-ay-DEE (each letter)", {}],
+    "FAD": ["ef-ay-DEE (each letter)", {}],
     /* 8 Nov 2026, Daniel: every key word, not only the hard ones ("the keywords from MRS GREN should be there"); a plain
        word has no guide (""), a phrase Cambridge has whole shows its parts' guides */
     "cell": ["", {}],
@@ -1096,7 +1127,18 @@
     "vasodilation": ["e/epd/epd29/epd29514", "e/eus/eus28/eus28981", "vasodilation"],
     "ventilation": ["u/ukv/ukvel/ukvelve029", "e/eus/eus74/eus74824", "ventilation"],
     "vertebrate": ["u/ukv/ukver/ukverit023", "u/usv/usver/usvermi012", "vertebrate"],
-    "yeast": ["u/uky/ukyd_/ukyd___010", "y/yea/yeast/yeast", "yeast"]
+    "yeast": ["u/uky/ukyd_/ukyd___010", "y/yea/yeast/yeast", "yeast"],
+    "matrix": ["u/ukm/ukmat/ukmatri007", "m/mat/matri/matrix", "matrix"],
+    "hydrophilic": ["e/epd/epd14/epd14606", "e/eus/eus14/eus14342", "hydrophilic"],
+    "glycoprotein": ["c/cdo/cdo11/cdo1121ukglyc1706", "c/cdo/cdo11/cdo1121usglyc1879", "glycoprotein"],
+    "ligand": ["c/cdo/cdo03/cdo0317ligauk2213", "c/cdo/cdo03/cdo0318usliga2743", "ligand"],
+    "ATP": ["e/epd/epd02/epd02252", "e/eus/eus02/eus02200", "atp"],
+    "coenzyme": ["c/cdo/cdo02/cdo0216coenuk0388", "c/coe/coenz/coenzyme", "coenzyme"],
+    "phosphate": ["u/ukp/ukpho/ukphone011", "p/pho/phosp/phosphate", "phosphate"],
+    "oxidative": ["c/ces/cespu/cespuk000820", "c/ces/cespu/cespus000820", "oxidative"],
+    "concentration": ["u/ukc/ukcon/ukconce009", "c/con/conce/concentration", "concentration"],
+    "intermembrane": ["c/cdo/cdo11/cdo1121ukinte2081", "c/cdo/cdo11/cdo1121usinte2339", "intermembrane"],
+    "transporter": ["u/ukt/uktra/uktrans123", "u/ust/ustra/ustrans011", "transporter"]
   };
   function camUrl(w, acc) { var c = CAM[w]; return CAM_HOST + '/media/english/' + acc + '_pron/' + c[acc === 'uk' ? 0 : 1] + '.mp3'; }
   function camPage(w) { return CAM_HOST + '/dictionary/english/' + CAM[w][2]; }
