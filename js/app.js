@@ -1172,7 +1172,7 @@
       if (!j || !j.ok) { if (j && j.why === 'not signed in') { if (c.pass && SI.dropPass) SI.dropPass(c.pass); if (sendCreds()) setSync('failed'); else spent(); } else setSync('failed'); return; }
       server = j;
       setSync(syncState === 'saving' ? 'saving' : 'saved');
-      paintWho(); accChanged();
+      paintWho(); accChanged(); fcLangLate();
       /* bring back progress made on another computer: only ever adds. A set the records hold on a NEWER
          go was started again elsewhere: this browser moves on too, keeping what it had in its first go and
          best. An OLDER go (or an older script that knows no goes) never reaches the page — its answers
@@ -1601,6 +1601,40 @@
     if (!q.length) { stage.innerHTML = '<p class="sec__p">There are no words to practise. <a class="wordslink" href="#/my">My words →</a></p>'; return; }
     paintCard();
   }
+  /* Daniel, 10 Nov 2026 (a pupil with the accommodation asked for it): "it should be a toggle … choose between English,
+     Korean, Chinese, and Japanese if it's available already". For an accommodation pupil, under each flashcard: Meaning
+     in English · 한국어 · 中文, the same choice as the 한국어 · 中文 switch at the top (kept under the pupil's own
+     address). The card's back then shows the English meaning AND the one chosen (js/data/ko.js or zh.js, fetched only
+     when chosen), never before the card is turned. No Japanese: the keyword list has no Japanese meanings, only the
+     glossary's Japanese names. Everyone else: as before, English only. */
+  function fcLangRow() {
+    if (!accOn()) return '';
+    var cur = langPref();
+    return '<div class="fc__lang" role="group" aria-label="The meaning in your language"><span class="fc__langl">Meaning in</span>' +
+      [['', 'English']].concat(Object.keys(LANGS).map(function (l) { return [l, LANGS[l].name]; })).map(function (x) {
+        return '<button type="button" class="fc__lb" data-fl="' + x[0] + '"' + (x[0] ? ' lang="' + LANGS[x[0]].tag + '"' : '') +
+          ' aria-pressed="' + (cur === x[0] ? 'true' : 'false') + '">' + x[1] + '</button>';
+      }).join('') + '</div>';
+  }
+  function fcLangLate() {   /* the answer came after the card was drawn: put the row under it now, or take it away */
+    var st = document.getElementById('fcStage'), card = document.getElementById('fcCard'), row = st && st.querySelector('.fc__lang');
+    if (!st || !card) return;
+    if (row) { if (!accOn()) row.parentNode.removeChild(row); return; }
+    if (!accOn()) return;
+    card.insertAdjacentHTML('afterend', fcLangRow()); wireFcLang(st);
+  }
+  function wireFcLang(root) {
+    Array.prototype.forEach.call(root.querySelectorAll('[data-fl]'), function (b) {
+      b.addEventListener('click', function () {
+        var l = b.getAttribute('data-fl');
+        setLangPref(l);
+        Array.prototype.forEach.call(root.querySelectorAll('[data-fl]'), function (o) { o.setAttribute('aria-pressed', o === b ? 'true' : 'false'); });
+        var top = document.querySelector('.who__langs'); if (top) markLangs(top);   /* the switch at the top says the same */
+        accChanged();
+        toast(l ? LANGS[l].said : 'English only.');
+      });
+    });
+  }
   function paintCard() {
     var st = document.getElementById('fcStage'); if (!st || !FC) return;
     var K = kwAll();
@@ -1630,12 +1664,13 @@
         (x.ko && CFG.koreanGloss !== false ? '<p class="fc__ko"><span class="fc__lab">한국어</span> <span lang="ko">' + T.esc(x.ko) + '</span></p>' : '') +
         '<p class="fc__kodef kogloss" lang="ko" data-kid="' + T.esc(x.id) + '" hidden></p></div>' +
       '<button type="button" class="btn btn--go fc__turn" id="fcTurn">Turn the card</button>' +
-      '</div>' +
+      '</div>' + fcLangRow() +
       '<div class="fc__rate" id="fcRate" role="group" aria-label="How well did you know it?" hidden>' +
         '<button type="button" class="btn fc__r fc__r--y" data-r="y">✓ I knew it</button>' +
         '<button type="button" class="btn fc__r fc__r--r" data-r="r">~ I partly knew it</button>' +
         '<button type="button" class="btn fc__r fc__r--n" data-r="n">✕ I did not know it</button></div>';
     var card = document.getElementById('fcCard');
+    wireFcLang(st);
     function turn() {
       if (FC.up) return; FC.up = true;
       document.getElementById('fcBack').hidden = false; document.getElementById('fcTurn').hidden = true;

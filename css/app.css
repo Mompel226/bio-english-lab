@@ -727,6 +727,12 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
 .fc__ko { margin: 10px 0 0; color: var(--muted); font-size: 16px; }
 .fc__kodef { margin: 8px 0 0; color: var(--ink-2); font-size: 16px; }
 .fc__turn { margin-top: auto; align-self: flex-start; }
+/* an accommodation pupil's choice of the meaning's language, under the card (10 Nov 2026) */
+.fc__lang { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin: 12px 0 0; }
+.fc__langl { font: 500 12px/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-right: 2px; }
+.fc__lb { font: inherit; font-size: 15px; font-weight: 600; color: var(--ink-2); background: var(--card); border: 1px solid var(--rule); border-radius: 999px; padding: 7px 16px; cursor: pointer; }
+.fc__lb:hover, .fc__lb:focus-visible { border-color: var(--green-2); color: var(--green); }
+.fc__lb[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
 .fc__rate { display: grid; gap: 8px; margin: 14px 0 0; }
 @media (min-width: 560px) { .fc__rate { grid-template-columns: repeat(3, 1fr); } }
 .fc__r { width: 100%; }
