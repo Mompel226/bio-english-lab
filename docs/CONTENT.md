@@ -74,7 +74,11 @@ may carry `{k:…}` tags.
 - `older:` — the question comes from an **older syllabus** and something in it has since changed.
   The card shows an "Older syllabus" chip while it is being answered, and this sentence with the
   model answer. Say what changed, and what the 2026–28 syllabus says instead.
-  `older: 'The 2026–28 syllabus no longer includes sewage treatment (it was 20.2 until 2025). The writing practice still counts.'`
+  `older: 'The 2026–28 syllabus does not ask you to compare voluntary and involuntary actions: this comparison was a Supplement statement until 2022. …'` (t14d2.08).
+  Check the claim in `labs-shared/syllabus-older.json` (the 2015–2022 syllabuses) and `syllabus.json` first: sewage treatment, for example,
+  is still in the syllabus as a way to control disease (10.1.5); only how a sewage works treats sewage was removed (last examined in 2022).
+  An `older:` added to a question pupils have already answered keeps their answers: run `tools/keep-records.mjs`, which
+  accepts an `older:` that came, went or changed (19 Nov 2026).
 - `deeper:` — the **fuller biology** behind the answer the examiner wants, folded away behind a
   toggle so the examined answer comes first. Use it wherever the exam answer is a simplification,
   and say plainly what to write in the exam.
