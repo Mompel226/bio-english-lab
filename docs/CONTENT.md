@@ -130,6 +130,18 @@ teaches this topic's version of the method.
 List a set under its unit's `sets` in `units.master.js` to fix its order; a set that is not listed is
 added at the end of its unit, in file order (the automatic keyword sets always go first).
 
+## "Say it like a scientist": the same set in every topic
+
+Daniel (18 Nov 2026): what is made for one topic is made for all of them, so pupils meet the same thing in every topic. Every
+topic unit has one set `<unit>.say.1`, "Say it like a scientist: <short title>" (Topic 17's is `t17.explain.4`), kind
+`explain`, always in this order: a `learn` card (the same opening sentence; 4–5 ✘/✔ pairs of wordings the 0610 examiners did
+not credit in that topic), then `pick`, `fix`, `fix`, `choose`, `exam`, each from a real 0610 question and scheme, with a
+reported wording as its trap. The page labels every ✘ line "SCORES NOTHING", so a pair needs a report or scheme that says
+the wording was not credited (an R line, "not credited", "not accepted", "insufficient", or "X rather than Y" in a marking
+context), quoted exactly. A set teaches nothing its unit's other sets or the method sets already teach. A general habit
+(whereas, so that, the mark scheme's own words, confused pairs) goes in a method set, never in a topic. To add or change one:
+keep the shape; the record of how the sets were made and checked is HANDOFF.md §2r.
+
 ## The question types
 
 Common fields: `id` (unique, never reused, e.g. `t7e.04`), `type`, `cmd` (the command word shown:
