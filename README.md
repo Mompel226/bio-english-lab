@@ -29,7 +29,7 @@ topic by topic, with the keywords every answer needs.
 | **Learn where the words come from** | Every topic has an etymology set: the Greek and Latin parts its keywords are built from (*cardi-* heart, *hepat-* liver, *-cyte* cell), and new words to work out from them. Every part was checked in a dictionary, and the answer names it. |
 | **Answer without free writing** | Choose the answer that scores, choose the right words, build the sentence from pieces, fix weak words, cut the words that score nothing, put a chain in order, type the keyword, mark an answer as the examiner would, then answer a real exam question step by step: think, order, write. |
 | **Keep your own flashcards** | **My words**: press ＋ beside any word on a topic's keyword list, and the words you rate in your assessment reflections come too. Practise them as flashcards: the word with its UK and US sounds from the Cambridge Dictionary, then what it means; each answer puts the word in *I do not know these yet*, *I partly know these* or *I know these*. Signed in, the list is the same on every computer. |
-| **See the model answer** | One line, one mark, with the keyword, the direction, the comparison, the data and the link each in their own colour. |
+| **See the model answer** | One line, one mark, with the keyword, the direction, the comparison, the data and the link each in their own colour. In a fill-the-gaps or exam-frame question the filled-in answer is the model answer, so the lines under it are headed **Mark scheme** (one mark a line). |
 
 > [!NOTE]
 > Every question names the real Cambridge past paper or syllabus statement it is based on. Model

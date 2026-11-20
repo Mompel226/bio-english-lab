@@ -304,6 +304,10 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
 .model-host:empty { display: none; }
 .model { margin-top: 14px; border: 1px solid var(--rule); border-radius: var(--r); background: #FFFEFB; }
 .model__head { padding: 8px 12px; border-bottom: 1px solid var(--rule-2); font: 500 11.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+/* a gap or exam question's marking points: the mark scheme, told apart from a model answer (20 Nov 2026) */
+.model--scheme { border-color: var(--teal); }
+.model--scheme .model__head { background: var(--teal-hl); color: var(--teal); font-weight: 700; border-bottom-color: var(--teal); }
+.model__sub { display: block; margin-top: 6px; font: 400 13px/1.4 var(--sans); letter-spacing: 0; text-transform: none; color: var(--ink-2); }
 .model__lines { list-style: none; margin: 0; padding: 0; counter-reset: ml; }
 .mline { display: grid; grid-template-columns: 1fr 54px; gap: 8px; border-bottom: 1px solid var(--rule-2); }
 .mline__text { padding: 9px 0 9px 12px; line-height: 1.6; }

@@ -54,13 +54,19 @@
   }
   function marksTag(m) { return m ? '<span class="q__marks">[' + m + ']</span>' : ''; }
 
-  /* ---------- the model answer: one line, one mark ---------- */
+  /* ---------- the model answer: one line, one mark ----------
+     A "gap" question's text and an "exam" question's frames ARE the model answer, with blanks; what this block lists for
+     them is one marking point a line: the mark scheme, and it says so (Daniel, 20 Nov 2026: "you see below model answer.
+     And then it actually doesn't show the model answer. It shows the mark scheme. The model answer is what is shown above
+     … you should be very clear that this is the mark scheme"), with no word count (a mark scheme is not written to a length). */
   function modelBlock(item) {
     var lines = item.model || [];
     if (!lines.length) return null;
-    var box = h('div', 'model');
+    var scheme = !item.modelTitle && (item.type === 'gap' || item.type === 'exam');
+    var box = h('div', 'model' + (scheme ? ' model--scheme' : ''));
     var total = 0, words = 0;
-    var head = h('div', 'model__head', '<span class="model__title">' + (item.modelTitle || 'Model answer') + '</span>');
+    var head = h('div', 'model__head', '<span class="model__title">' + (item.modelTitle || (scheme ? 'Mark scheme' : 'Model answer')) + '</span>' +
+      (scheme ? '<span class="model__sub">One mark for each line. The model answer is your filled-in answer above.</span>' : ''));
     box.appendChild(head);
     var list = h('ol', 'model__lines');
     lines.forEach(function (ln) {
@@ -73,7 +79,7 @@
       list.appendChild(li);
     });
     box.appendChild(list);
-    var foot = h('div', 'model__foot', '<span>' + words + ' words</span><span>' + total + ' mark' + (total === 1 ? '' : 's') + '</span>');
+    var foot = h('div', 'model__foot', (scheme ? '<span></span>' : '<span>' + words + ' words</span>') + '<span>' + total + ' mark' + (total === 1 ? '' : 's') + '</span>');
     box.appendChild(foot);
     if (item.note) box.appendChild(h('p', 'model__note', T.tags(item.note)));
     var ex = extrasHTML(item); if (ex) box.appendChild(h('div', 'model__extra', ex));
