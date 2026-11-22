@@ -666,7 +666,14 @@
     "double helix": ["DUB-ul HEE-liks", {}],
     "biuret": ["BY-yuh-ret", {}],
     "Benedict’s": ["BEN-uh-dikts", {}],
-    "DCPIP": ["dee-see-pee-eye-pee", {}]
+    "DCPIP": ["dee-see-pee-eye-pee", {}],
+    "alcohol": ["", {}],
+    "optimum": ["OP-tih-mum", {}],
+    "cell division": ["", {}],
+    "muscle contraction": ["MUS-ul kun-TRAK-shun", {}],
+    "protein synthesis": ["PROH-teen SIN-thuh-sis", {}],
+    "nerve impulse": ["NERV IM-puls", {}],
+    "methylene blue": ["METH-uh-leen BLOO", {}]
   };
   /* word: [its UK recording, its US recording, its page], each under https://dictionary.cambridge.org
      (/media/english/uk_pron/….mp3, /media/english/us_pron/….mp3, /dictionary/english/…) */
@@ -1185,7 +1192,10 @@
     "helix": ["u/ukh/ukhef/ukheft_021", "u/ush/ushed/ushedge016", "helix"],
     "double helix": ["u/uka/uka32/uka32612", "u/usa/usa32/usa32612", "double-helix"],
     "inspiration": ["u/uki/ukins/ukinspe003", "i/ins/inspi/inspiration", "inspiration"],
-    "expiration": ["c/cal/cald4/cald4uk0525", "c/cal/cald4/cald4us0789", "expiration"]
+    "expiration": ["c/cal/cald4/cald4uk0525", "c/cal/cald4/cald4us0789", "expiration"],
+    "alcohol": ["u/uka/ukalb/ukalbin006", "a/alc/alcoh/alcohol", "alcohol"],
+    "optimum": ["u/uko/ukopp/ukoppre017", "e/eus/eus75/eus75259", "optimum"],
+    "cell division": ["c/cdo/cdo06/cdo0623ukcell0435", "c/cdo/cdo06/cdo0623uscell0437", "cell-division"]
   };
   function camUrl(w, acc) { var c = CAM[w]; return CAM_HOST + '/media/english/' + acc + '_pron/' + c[acc === 'uk' ? 0 : 1] + '.mp3'; }
   function camPage(w) { return CAM_HOST + '/dictionary/english/' + CAM[w][2]; }
