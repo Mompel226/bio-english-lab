@@ -618,6 +618,13 @@
     "skin": ["", {}],
     "small intestine": ["", {}],
     "solvent": ["", {}],
+    "solute": ["SOL-yoot", {}],
+    "solution": ["", {}],
+    "dilute": ["dye-LOOT", {}],
+    "equilibrium": ["ee-kwih-LIB-ree-um", {}],
+    "turgor": ["TUR-ger", {}],
+    "partially": ["PAR-shuh-lee", {}],
+    "potential": ["puh-TEN-shul", {}],
     "spinal cord": ["", {}],
     "stem": ["", {}],
     "stomach": ["", {}],
@@ -640,7 +647,19 @@
     "vasodilation": ["", {}],
     "ventilation": ["", {}],
     "vertebrate": ["", {}],
-    "yeast": ["", {}]
+    "yeast": ["", {}],
+    "alveolus": ["al-VEE-uh-lus", {}],
+    "alveoli": ["al-VEE-uh-lye", {}],
+    "bronchus": ["BRONG-kus", {}],
+    "bronchi": ["BRONG-kye", {}],
+    "bronchiole": ["BRONG-kee-ohl", {}],
+    "rib": ["", {}],
+    "intercostal": ["in-ter-KOS-tul", {}],
+    "inspiration": ["", {}],
+    "expiration": ["", {}],
+    "cilium": ["SIL-ee-um", {}],
+    "cilia": ["SIL-ee-uh", {}],
+    "goblet": ["", {}]
   };
   /* word: [its UK recording, its US recording, its page], each under https://dictionary.cambridge.org
      (/media/english/uk_pron/….mp3, /media/english/us_pron/….mp3, /dictionary/english/…) */
@@ -1105,6 +1124,14 @@
     "skin": ["u/uks/ukske/uksketc026", "s/ski/skin_/skin", "skin"],
     "small intestine": ["u/uka/uka34/uka34890", "u/usa/usa34/usa34890", "small-intestine"],
     "solvent": ["u/uks/uksol/uksolip015", "e/eus/eus75/eus75942", "solvent"],
+    "solute": ["c/csd/csdk0/csdk0268", "s/sol/solut/solute", "solute"],
+    "solution": ["u/uks/uksol/uksolip011", "s/sol/solut/solution", "solution"],
+    "dilute": ["u/ukd/ukdig/ukdigs_020", "d/dil/dilut/dilute", "dilute"],
+    "equilibrium": ["u/uke/ukepi/ukepito025", "e/equ/equil/equilibrium", "equilibrium"],
+    "turgor": ["e/epd/epd28/epd28546", "e/eus/eus28/eus28032", "turgor"],
+    "partially": ["u/ukp/ukpar/ukparsi016", "p/par/parti/partially", "partially"],
+    "potential": ["u/ukp/ukpos/ukpostw014", "p/pot/poten/potential", "potential"],
+    "permeable": ["u/ukp/ukper/ukperki011", "e/eus/eus73/eus73512", "permeable"],
     "spinal cord": ["u/uka/uka35/uka35006", "u/usa/usa35/usa35006", "spinal-cord"],
     "stem": ["u/uks/ukste/uksteep011", "s/ste/stem_/stem", "stem"],
     "stomach": ["u/uks/uksto/ukstoma001", "s/sto/stoma/stomach", "stomach"],
@@ -1138,7 +1165,16 @@
     "oxidative": ["c/ces/cespu/cespuk000820", "c/ces/cespu/cespus000820", "oxidative"],
     "concentration": ["u/ukc/ukcon/ukconce009", "c/con/conce/concentration", "concentration"],
     "intermembrane": ["c/cdo/cdo11/cdo1121ukinte2081", "c/cdo/cdo11/cdo1121usinte2339", "intermembrane"],
-    "transporter": ["u/ukt/uktra/uktrans123", "u/ust/ustra/ustrans011", "transporter"]
+    "transporter": ["u/ukt/uktra/uktrans123", "u/ust/ustra/ustrans011", "transporter"],
+    "alveolus": ["e/epd/epd01/epd01077", "e/eus/eus01/eus01054", "alveolus"],
+    "bronchus": ["e/epd/epd04/epd04406", "e/eus/eus04/eus04278", "bronchus"],
+    "bronchiole": ["e/epd/epd04/epd04403", "e/eus/eus04/eus04275", "bronchiole"],
+    "rib": ["u/ukr/ukrhy/ukrhyth003", "r/rib/rib__/rib", "rib"],
+    "intercostal": ["e/epd/epd15/epd15285", "e/eus/eus15/eus15015", "intercostal"],
+    "cilium": ["e/epd/epd06/epd06078", "e/eus/eus05/eus05918", "cilium"],
+    "goblet": ["u/ukg/ukgoa/ukgoall017", "e/eus/eus72/eus72050", "goblet"],
+    "inspiration": ["u/uki/ukins/ukinspe003", "i/ins/inspi/inspiration", "inspiration"],
+    "expiration": ["c/cal/cald4/cald4uk0525", "c/cal/cald4/cald4us0789", "expiration"]
   };
   function camUrl(w, acc) { var c = CAM[w]; return CAM_HOST + '/media/english/' + acc + '_pron/' + c[acc === 'uk' ? 0 : 1] + '.mp3'; }
   function camPage(w) { return CAM_HOST + '/dictionary/english/' + CAM[w][2]; }
