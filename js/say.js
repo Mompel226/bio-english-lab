@@ -659,7 +659,14 @@
     "expiration": ["", {}],
     "cilium": ["SIL-ee-um", {}],
     "cilia": ["SIL-ee-uh", {}],
-    "goblet": ["", {}]
+    "goblet": ["", {}],
+    "element": ["", {}],
+    "emulsion": ["ih-MUL-shun", {}],
+    "helix": ["HEE-liks", {}],
+    "double helix": ["DUB-ul HEE-liks", {}],
+    "biuret": ["BY-yuh-ret", {}],
+    "Benedict’s": ["BEN-uh-dikts", {}],
+    "DCPIP": ["dee-see-pee-eye-pee", {}]
   };
   /* word: [its UK recording, its US recording, its page], each under https://dictionary.cambridge.org
      (/media/english/uk_pron/….mp3, /media/english/us_pron/….mp3, /dictionary/english/…) */
@@ -1173,6 +1180,10 @@
     "intercostal": ["e/epd/epd15/epd15285", "e/eus/eus15/eus15015", "intercostal"],
     "cilium": ["e/epd/epd06/epd06078", "e/eus/eus05/eus05918", "cilium"],
     "goblet": ["u/ukg/ukgoa/ukgoall017", "e/eus/eus72/eus72050", "goblet"],
+    "element": ["u/uke/ukele/ukelect012", "e/ele/eleme/element", "element"],
+    "emulsion": ["u/uke/ukemp/ukemplo018", "e/eus/eus71/eus71522", "emulsion"],
+    "helix": ["u/ukh/ukhef/ukheft_021", "u/ush/ushed/ushedge016", "helix"],
+    "double helix": ["u/uka/uka32/uka32612", "u/usa/usa32/usa32612", "double-helix"],
     "inspiration": ["u/uki/ukins/ukinspe003", "i/ins/inspi/inspiration", "inspiration"],
     "expiration": ["c/cal/cald4/cald4uk0525", "c/cal/cald4/cald4us0789", "expiration"]
   };
