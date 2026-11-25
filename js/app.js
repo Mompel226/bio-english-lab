@@ -257,7 +257,7 @@
     ts.appendChild(years); ts.appendChild(ledger);
     paintLedger(ledger, y);
     main.appendChild(band2);
-    if (year) setTimeout(function () { ts.scrollIntoView({ block: 'start' }); }, 0);
+    if (year && !keepScroll) setTimeout(function () { ts.scrollIntoView({ block: 'start' }); }, 0);
   }
   function script(kind, s) {
     var c = h('div', 'script-card script-card--' + kind);
@@ -512,7 +512,7 @@
     w.appendChild(mk);
     main.appendChild(w);
     paintRecord();
-    if (open) { var el = document.getElementById('cmd-' + open.toLowerCase()); if (el) setTimeout(function () { el.scrollIntoView({ block: 'start' }); }, 0); }
+    if (open && !keepScroll) { var el = document.getElementById('cmd-' + open.toLowerCase()); if (el) setTimeout(function () { el.scrollIntoView({ block: 'start' }); }, 0); }
   }
 
   /* ============================================================
@@ -1007,11 +1007,11 @@
       notListedSaid = false; claimFor(v.email);
       try { localStorage.removeItem(LANG_PREF); } catch (e) {}   /* the language is a pupil's own (kept under their address): the last one's goes */
       paintKo();
-      route();          /* an open set holds the last pupil's record: draw it again on this pupil's (the audit, 8 Oct 2026) */
+      redraw();         /* an open set holds the last pupil's record: draw it again on this pupil's (the audit, 8 Oct 2026) */
       fetchMine(); fetchRecord();
     }
     else if (again) { fetchMine(); if (!record) fetchRecord(); }
-    if (!v) { server = null; record = null; paintKo(); route(); }
+    if (!v) { server = null; record = null; paintKo(); redraw(); }
   });
 
   /* ---------- the student's own dashboard (the reflection system's record page) ----------
@@ -1209,7 +1209,7 @@
          queue every set with an answer in it (the server merge only ever adds, so nothing is lost) */
       var toSend = Object.keys(P.sets).filter(function (sid) { var r = P.sets[sid]; return META.sets[sid] && r && ((r.items && Object.keys(r.items).length) || goOf(r) > 1); });
       toSend.forEach(function (sid, i) { queueSync(sid, i === toSend.length - 1); });
-      if (!/^#\/my\/cards/.test(location.hash)) route();   /* never in the middle of a round of My words' cards */
+      if (!/^#\/my\/cards/.test(location.hash)) redraw();   /* never in the middle of a round of My words' cards */
     }).catch(function () { if (mineAsking === asked) mineAsking = ''; if (me && me.email === asked) setSync('failed'); });
   }
   function paintHomework(host) {
@@ -1721,7 +1721,17 @@
     else if (p[0] === 'commands') { viewGuide(p[1] ? decodeURIComponent(p[1]) : ''); }
     else if (/^y\d+$/.test(p[0])) { viewHome(parseInt(p[0].slice(1), 10)); }
     else { viewHome(null); }
-    if (p[0] !== 'y' && !/^y\d+$/.test(p[0])) window.scrollTo(0, 0);
+    if (!keepScroll && p[0] !== 'y' && !/^y\d+$/.test(p[0])) window.scrollTo(0, 0);
+  }
+  /* The same page drawn again because something arrived from the server (the pupil's record, the sign-in), not because
+     the pupil opened a page: the pupil stays where they are. Until 25 Nov 2026 every arrival jumped to the top, so a pupil
+     who scrolled while the page loaded was thrown back up several times (Daniel). */
+  var keepScroll = false;
+  function redraw() {
+    var y = window.scrollY;
+    keepScroll = true;
+    try { route(); } finally { keepScroll = false; }
+    window.scrollTo(0, y);
   }
   addEventListener('hashchange', route);
   paintWho();
