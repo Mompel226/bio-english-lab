@@ -584,7 +584,7 @@
       w.appendChild(h('p', 'sec__p', 'This topic\u2019s questions also use these ' + LT.length + ' words. A later topic teaches them; for now, learn what they mean. On a question they have a dotted line under them: tap one to see its meaning.'));
       var dl2 = h('dl', 'words words--later');
       LT.forEach(function (id) {
-        var x = kwAll()[id], lu = META.units[x.uid], g2 = h('div', 'words__i');
+        var x = kwAll()[id], lu = taughtIn(id, uid), g2 = h('div', 'words__i');
         g2.appendChild(h('dt', 'words__t', T.esc(x.t) + (lu ? ' <span class="words__from">Topic ' + T.esc(lu.n) + '</span>' : '') +
           (x.ko && CFG.koreanGloss !== false ? ' <span class="words__ko" lang="ko">' + T.esc(x.ko) + '</span>' : '') + addBtn(id) + (window.Say ? window.Say.html(sayTerm(x.t)) : '')));
         g2.appendChild(h('dd', 'words__d', T.esc(x.d) + '<span class="words__kodef kogloss" lang="ko" data-kid="' + T.esc(id) + '" hidden></span>' +
@@ -1350,6 +1350,16 @@
     Object.keys(META.gloss || {}).forEach(function (id) { var g = META.gloss[id]; if (!KWX[id]) KWX[id] = { id: id, t: g.t, d: g.d, ko: '', sup: g.sup, uid: '', n: '', gl: true }; });
     return KWX;
   }
+  /* the topic to name for a keyword met in topic `here`: its card's topic, unless that comes after `here` and an earlier
+     topic's syllabus statements already teach it (meta.firstAt, from tools/build.mjs; Daniel, 26 Nov 2026: root hair cells
+     are Topic 2's specialised cells, though their card is in Topic 8). Null for a word with no topic (IB, glossary). */
+  var UPLACE = null;
+  function taughtIn(id, here) {
+    var x = kwAll()[id]; if (!x || !x.uid) return null;
+    if (!UPLACE) { UPLACE = {}; var i = 0; (META.years || []).forEach(function (Y) { (Y.units || []).forEach(function (u) { UPLACE[u] = i++; }); }); }
+    var f = (META.firstAt || {})[id], at = f && here && UPLACE[x.uid] > UPLACE[here] ? f : x.uid;
+    return META.units[at] || null;
+  }
   /* the name a word is said by: "Alveoli (singular: alveolus)" is said "alveoli" */
   function sayTerm(t) { return String(t).replace(/\s*\(.*$/, '').trim(); }
 
@@ -1599,7 +1609,7 @@
     var html = '<button type="button" class="lu-pop__x" aria-label="Close">✕</button>';
     var known = ids.filter(function (id) { return K[id]; });
     known.forEach(function (id) {
-      var x = K[id], u = x.uid && META.units[x.uid], later = L.later && L.later[id];
+      var x = K[id], u = taughtIn(id, L.unit), later = L.later && L.later[id];
       var where = u ? 'Topic ' + T.esc(u.n) + ': ' + T.esc(u.title) + ' (Year ' + T.esc(String(u.year)) + ')' : x.ib ? 'Beyond IGCSE: an IB word' : x.gl ? 'From the labs’ glossary' : '';
       html += '<div class="lu-pop__w"><p class="lu-pop__t"><b>' + T.esc(x.t) + '</b>' +
         (!secret && x.ko && CFG.koreanGloss !== false ? ' <span class="words__ko" lang="ko">' + T.esc(x.ko) + '</span>' : '') +
@@ -1641,7 +1651,7 @@
     var top = card.querySelector('.card__top');
     var laterIds = ((META.later || {})[unit] || []), later = null;
     if (laterIds.length) { later = {}; laterIds.forEach(function (id) { later[id] = 1; }); }
-    var L = card.__lu = { later: later, secret: answerOf(item), on: false, mo: null };
+    var L = card.__lu = { later: later, secret: answerOf(item), on: false, mo: null, unit: unit };
     if (done) card.dataset.done = '1';
     if (top) {
       var bar = h('span', 'lu-bar'), b = h('button', 'lu-btn', 'Look up a word');
