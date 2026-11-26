@@ -147,7 +147,6 @@
     save();
   }
   function workDone(w) { return !!(w && (w.c === 'ok' || w.c === 'shown' || (w.x && w.x.d))); }
-  function scored(set) { return set.items.filter(function (it) { return it.type !== 'learn'; }); }
   /* The numbers a set shows — worked out from META (no need to open the set) when possible */
   function tally(setId) {
     var m = META.sets[setId]; if (!m) return { done: 0, first: 0, total: 0 };
