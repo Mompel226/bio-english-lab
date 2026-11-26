@@ -789,3 +789,17 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
 /* the letter hints (js/engine.js letterHint): what the next press does, and how many letters are shown */
 .hintn { margin-left: 8px; font-size: 13.5px; color: var(--muted); }
 .hintbtn:disabled, .hintbtn--wide:disabled { opacity: .55; cursor: default; }
+/* look-up's own Done, and the meaning box's choice of list (26 Nov 2026): ✓ green, ~ amber, ✕ red, as My words' lists */
+.lu-hint { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.lu-done { font: 600 13.5px/1 var(--sans); padding: 8px 16px; min-height: 36px; border-radius: var(--pill); border: 0; background: var(--teal); color: #fff; cursor: pointer; }
+.lu-done:hover, .lu-done:focus-visible { background: #08485C; }
+.lu-rate { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 0; }
+.lu-rate__l { font-size: 13.5px; font-weight: 600; color: var(--ink-2); margin-right: 2px; }
+.lu-rate__b, .lu-rate__x { font: 600 13px/1.1 var(--sans); padding: 7px 11px; min-height: 34px; border-radius: var(--pill); border: 1px solid var(--rule); background: var(--card); cursor: pointer; }
+.lu-rate__b--y { border-color: var(--green-hl); color: var(--green); }
+.lu-rate__b--r { border-color: rgba(138, 83, 6, .45); color: var(--amber); }
+.lu-rate__b--n { border-color: rgba(168, 50, 42, .4); color: var(--red); }
+.lu-rate__b--y[aria-pressed="true"] { background: var(--ok-tint); border: 2px solid var(--green-2); }
+.lu-rate__b--r[aria-pressed="true"] { background: #FBF3DF; border: 2px solid var(--amber); }
+.lu-rate__b--n[aria-pressed="true"] { background: var(--red-tint); border: 2px solid var(--red); }
+.lu-rate__x { border-color: transparent; background: transparent; color: var(--muted); text-decoration: underline; }

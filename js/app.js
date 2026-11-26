@@ -1306,7 +1306,8 @@
      choose while they study, not only the words their reflections rate. Three lists, the reflection's own names: I do not
      know these yet (n), I partly know these (r), I know these (y).
        · P.words  { <keyword id>: [list n|r|y|x, when (s), from] }: the pupil's moves; x = taken out of the list. from = where the
-                  word first came from: "w" a topic's keyword list (＋), "r" a reflection. Kept in this browser with the rest
+                  word first came from: "w" a topic's keyword list (＋), "q" a word looked up on a question (26 Nov 2026), "r" a
+                  reflection. Kept in this browser with the rest
                   of P (so a shared computer's next pupil never inherits it: claimFor, clearHere) and, signed in, in the labs
                   script (words.save / words.mine; the ✍️ Bio English tab's My words column), so every computer has it.
        · P.wd     { <keyword id>: true }: the moves not yet in the records (sent next time if the page closed first).
@@ -1565,7 +1566,7 @@
     var L = card.__lu; if (!!L.on === !!on) return;
     L.on = !!on;
     luQuiet(card, function () {
-      L.btn.textContent = on ? 'Done' : 'Look up a word';
+      L.btn.textContent = on ? 'Look-up is on' : 'Look up a word';
       L.btn.setAttribute('aria-pressed', on ? 'true' : 'false');
       L.hint.hidden = !on;
       card.classList.toggle('is-lookup', !!on);
@@ -1578,6 +1579,15 @@
     if (LU_POP && LU_POP.parentNode) LU_POP.parentNode.removeChild(LU_POP);
     LU_POP = null;
     document.removeEventListener('keydown', luKey); document.removeEventListener('click', luCloseOnOutside, true);
+  }
+  /* the meaning box's choice of list (Daniel, 26 Nov 2026: "you can't choose where to place it into the i don't know or half
+     way know sections"): the three lists in the words and order of My words' own page, the chosen one pressed */
+  function rateHTML(id) {
+    var cur = myWords()[id];
+    return '<span class="lu-rate__l">' + (cur ? 'In My words:' : 'Put it in My words:') + '</span>' +
+      [['y', '\u2713 I know it'], ['r', '~ I partly know it'], ['n', '\u2715 I do not know it']].map(function (o) {
+        return '<button type="button" class="lu-rate__b lu-rate__b--' + o[0] + '" data-rate="' + o[0] + '" aria-pressed="' + (!!cur && cur.b === o[0]) + '">' + o[1] + '</button>';
+      }).join('') + (cur ? '<button type="button" class="lu-rate__x" data-rate="x">Remove</button>' : '');
   }
   function dict(word, kind) { return 'https://dictionary.cambridge.org/search/direct/?datasetsearch=' + kind + '&q=' + encodeURIComponent(String(word).toLowerCase()); }
   /* the meaning box: at the foot of the screen, over nothing the pupil needs while reading it */
@@ -1593,11 +1603,12 @@
       var where = u ? 'Topic ' + T.esc(u.n) + ': ' + T.esc(u.title) + ' (Year ' + T.esc(String(u.year)) + ')' : x.ib ? 'Beyond IGCSE: an IB word' : x.gl ? 'From the labs’ glossary' : '';
       html += '<div class="lu-pop__w"><p class="lu-pop__t"><b>' + T.esc(x.t) + '</b>' +
         (!secret && x.ko && CFG.koreanGloss !== false ? ' <span class="words__ko" lang="ko">' + T.esc(x.ko) + '</span>' : '') +
-        addBtn(id) + (window.Say ? window.Say.html(sayTerm(x.t)) : '') + '</p>' +
+        (window.Say ? window.Say.html(sayTerm(x.t)) : '') + '</p>' +
         (later ? '<p class="lu-pop__from">A word from a later topic. You will learn it in ' + where + '. For now, this is what it means:</p>'
                : where ? '<p class="lu-pop__from">' + where + '</p>' : '') +
         (secret ? '<p class="lu-pop__d">This word is part of the answer to this question, so its meaning shows after you check your answer.</p>'
-                : '<p class="lu-pop__d">' + T.esc(x.d) + '<span class="words__kodef kogloss" lang="ko" data-kid="' + T.esc(id) + '" hidden></span></p>') + '</div>';
+                : '<p class="lu-pop__d">' + T.esc(x.d) + '<span class="words__kodef kogloss" lang="ko" data-kid="' + T.esc(id) + '" hidden></span></p>') +
+        '<div class="lu-rate" role="group" aria-label="Put ' + T.esc(x.t) + ' in My words" data-id="' + T.esc(id) + '">' + rateHTML(id) + '</div></div>';
     });
     if (!known.length) {
       html += '<div class="lu-pop__w"><p class="lu-pop__t"><b>' + T.esc(word) + '</b></p>' +
@@ -1609,7 +1620,15 @@
     box.innerHTML = html;
     box.addEventListener('click', function (e) {
       if (e.target.closest('.lu-pop__x')) { luClose(); return; }
-      var ad = e.target.closest('.mw__add'); if (ad) toggleWord(ad.getAttribute('data-add'));
+      var rb = e.target.closest('[data-rate]'); if (!rb) return;
+      var row = rb.closest('.lu-rate'), id = row.getAttribute('data-id'), mv = rb.getAttribute('data-rate'), had = !!myWords()[id];
+      if (mv === 'x') { setWord(id, 'x'); toast('Removed from My words.'); }
+      else {
+        setWord(id, mv, had || (P.words && P.words[id]) ? undefined : 'q');   /* a word met on a question; one already listed keeps where it came from */
+        toast('In My words: \u201c' + MW_LISTS.filter(function (l) { return l[0] === mv; })[0][1] + '\u201d.');
+      }
+      row.innerHTML = rateHTML(id);
+      paintAdds(); paintMwLine();
     });
     document.body.appendChild(box); LU_POP = box;
     paintKo(box);
@@ -1628,9 +1647,15 @@
       var bar = h('span', 'lu-bar'), b = h('button', 'lu-btn', 'Look up a word');
       b.type = 'button'; b.setAttribute('aria-pressed', 'false');
       bar.appendChild(b); top.appendChild(bar); L.btn = b;
-      L.hint = h('p', 'lu-hint', 'Tap a word to see what it means, and to add it to My words. Press <b>Done</b> to answer the question again.');
+      /* The top button only turns look-up ON; Done, in the line under it, turns it off (Daniel, 26 Nov 2026: "when pressing
+         look up the word many times it blinks back to not showing the terms underlined and it is very annoying": the same
+         button used to say Done and switch it off at every second press). */
+      L.hint = h('div', 'lu-hint', '<span>Tap a word to see what it means, and to put it in My words.</span>');
+      var done = h('button', 'lu-done', 'Done'); done.type = 'button'; done.setAttribute('aria-label', 'Done looking up words: answer the question');
+      L.hint.appendChild(done);
       L.hint.hidden = true; top.parentNode.insertBefore(L.hint, top.nextSibling);
-      b.addEventListener('click', function (e) { e.stopPropagation(); luSet(card, !L.on); });
+      b.addEventListener('click', function (e) { e.stopPropagation(); luSet(card, true); });
+      done.addEventListener('click', function (e) { e.stopPropagation(); luSet(card, false); try { b.focus({ preventScroll: true }); } catch (x) {} });
     }
     function open(el) {
       var ids = (el.getAttribute('data-ids') || '').split(' ').filter(Boolean);
@@ -1638,7 +1663,7 @@
     }
     card.addEventListener('click', function (e) {
       var t = e.target; if (!t || !t.closest) return;
-      if (t.closest('.lu-bar')) return;
+      if (t.closest('.lu-bar,.lu-hint')) return;
       var lw = t.closest('.lu-later') || (L.on && t.closest('.lu-w'));
       if (lw) { e.preventDefault(); e.stopPropagation(); open(lw); return; }
       if (!L.on) return;
@@ -1812,6 +1837,7 @@
     if (!x || !cur) { el.innerHTML = ''; return; }
     var from = cur.from === 'r' ? 'From your assessment reflection' + (cur.at ? ' (the assessment of ' + T.esc(mwDate(cur.at)) + ')' : '') + '.'
              : cur.from === 'w' ? 'You added it from a topic’s keyword list.'
+             : cur.from === 'q' ? 'You added it from a question.'
              : /^l:/.test(cur.from) ? 'You marked it in the ' + T.esc(labName(cur.from)) + '’s glossary.' : '';
     el.innerHTML = '<div class="mwc"><h3 class="mwc__t">' + T.esc(x.t) + (x.ko && CFG.koreanGloss !== false ? ' <span class="words__ko" lang="ko">' + T.esc(x.ko) + '</span>' : '') + '</h3>' +
       (window.Say ? window.Say.html(sayTerm(x.t)) : '') +
