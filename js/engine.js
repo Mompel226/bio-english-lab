@@ -54,6 +54,48 @@
   }
   function marksTag(m) { return m ? '<span class="q__marks">[' + m + ']</span>' : ''; }
 
+  /* ---------- a forgiven spelling slip, SHOWN (26 Nov 2026) ----------
+     Pupils: "make sure that you highlight that I have made a typo", because a misspelt word marked plain green looked spelt
+     right. The answer still counts as right (one slip in a long word is forgiven: text.js says how many), but its box turns
+     amber, "Spelling: <the right word>" sits beside it, and the card's line says "check the spelling". */
+  function spellClear(inp) {
+    inp.classList.remove('is-near');
+    var w = inp.parentNode, t = w && w.classList && w.classList.contains('gapw') ? w.querySelector('.spell') : inp.nextSibling;
+    if (t && t.classList && t.classList.contains('spell')) t.parentNode.removeChild(t);
+  }
+  function spellMark(inp, r) {
+    spellClear(inp);
+    inp.classList.add('is-near');
+    var tag = h('span', 'spell', 'Spelling: <b>' + T.esc(r.to) + '</b>'), w = inp.parentNode;
+    if (w.classList && w.classList.contains('gapw')) w.appendChild(tag); else w.insertBefore(tag, inp.nextSibling);
+    return '“' + T.esc(inp.value.trim()) + '” is accepted, but the right spelling is <b>' + T.esc(r.to) + '</b>.';
+  }
+
+  /* ---------- letter hints (26 Nov 2026) ----------
+     Each press shows one more letter of the answer in the empty box (a space or hyphen comes with the next letter). The
+     button says what its next press does and how many letters are shown: pupils read "First letter" on every press and did
+     not know that more letters were there. It stops one letter before the end, so a hint never types the whole answer:
+     that is "Show the model answer". wide: a button with words (keyword cards); else the small ? of a gap. */
+  var LETTER = /[A-Za-z0-9À-ÿµ]/;
+  function letterHint(b, inp, word, wide) {
+    word = String(word || '');
+    var total = word.split('').filter(function (c) { return LETTER.test(c); }).length, max = Math.max(1, total - 1), shown = 0;
+    var cnt = wide ? h('span', 'hintn') : null;
+    if (cnt) cnt.setAttribute('aria-live', 'polite');
+    function prefix(n) { var out = '', c = 0; for (var i = 0; i < word.length && c < n; i++) { out += word.charAt(i); if (LETTER.test(word.charAt(i))) c++; } return out; }
+    function paint() {
+      var label = shown >= max ? 'No more letters' : shown ? 'Show the next letter' : 'Show the first letter';
+      var count = shown ? shown + ' of ' + total + ' letters shown' : '';
+      if (wide) { b.textContent = label; cnt.textContent = count; }
+      b.setAttribute('aria-label', label + (count ? ' (' + count + ')' : ''));
+      b.title = label + (count ? ' (' + count + ')' : '');
+      b.disabled = shown >= max;
+    }
+    b.addEventListener('click', function () { if (shown < max) shown++; inp.placeholder = prefix(shown) + '…'; paint(); inp.focus(); });
+    paint();
+    return { count: cnt };
+  }
+
   /* ---------- the model answer: one line, one mark ----------
      A "gap" question's text and an "exam" question's frames ARE the model answer, with blanks; what this block lists for
      them is one marking point a line: the mark scheme, and it says so (Daniel, 20 Nov 2026: "you see below model answer.
@@ -308,14 +350,24 @@
     var modelHost = h('div', 'model-host');
     var after = h('div', 'card__next'); after.appendChild(bNext);
     card.appendChild(bar); card.appendChild(verdict); card.appendChild(fb); card.appendChild(modelHost); card.appendChild(after);
-    var shown = false, tries = 0, wrongs = 0, changed = false, lastWrong = null;
+    var shown = false, tries = 0, wrongs = 0, changed = false, lastWrong = null, done = '', keepT = null;
+    /* Answers kept (26 Nov 2026; Daniel: "once they have completed a question, they should not have to go back and then when
+       they return, have lost all of the information"): the card hands app.js its work, { a: api.snap(), the answer as the
+       pupil left it; c: 'ok' checked right, 'shown' answer shown, '' not finished }, after every check and a moment after
+       every change, and draws it again from ctx.work when the pupil comes back to the question (only on this computer). */
+    function keep() {
+      clearTimeout(keepT); keepT = null;
+      if (!ctx.onWork || !api.snap) return;
+      try { ctx.onWork({ a: api.snap(), c: done }); } catch (e) {}
+    }
+    function keepSoon() { if (ctx.onWork && api.snap && !keepT) keepT = setTimeout(keep, 400); }
     /* what the pupil does on the card (not its Check, Try again or Show buttons): a wrong check after a change is a new try;
        the same answer checked again is not (the audit, 8 Oct 2026: two presses of Check reached the help) */
     function touched(e) {
       var t = e.target;
       if (!t || !t.closest || t.closest('.card__foot')) return;
       if (e.type === 'click' && !t.closest('button,input,select,label,[role="button"],[tabindex]')) return;
-      changed = true;
+      changed = true; keepSoon();
     }
     card.addEventListener('input', touched, true); card.addEventListener('change', touched, true); card.addEventListener('click', touched, true);
 
@@ -326,14 +378,17 @@
     }
     function finish() { bNext.hidden = !ctx.onNext; }
 
-    bCheck.addEventListener('click', function () {
+    /* replay: a question checked right on an earlier visit, drawn again (its marks, line and model answer), and counted
+       nowhere a second time */
+    function check(replay) {
       var res = api.check();
+      if (replay && !(res && res.ok)) { api.clear(); return; }
       if (!res) { verdict.className = 'verdict verdict--wait'; verdict.textContent = api.incomplete || 'Finish the answer first.'; return; }
-      tries++;
+      if (!replay) tries++;
       api.lock(true);
       card.classList.remove('is-right', 'is-wrong');
       card.classList.add(res.ok ? 'is-right' : 'is-wrong');
-      verdict.className = 'verdict ' + (res.ok ? 'verdict--ok' : 'verdict--no');
+      verdict.className = 'verdict ' + (res.ok ? 'verdict--ok' : 'verdict--no') + (res.ok && res.near ? ' verdict--near' : '');
       verdict.textContent = res.ok ? (res.say || '✓ Correct') : (res.say || '✗ Not yet');
       /* why  = words, escaped and tagged here;  whyHTML = already-built markup (a keyword card,
          a list of lines). Running the second through T.tags printed the markup at the reader. */
@@ -351,10 +406,13 @@
       fb.innerHTML = (whyHTML || T.tags(why)) + helpBox(help);
       if (global.AL_KO_PAINT) global.AL_KO_PAINT(fb);
       bCheck.hidden = true;
-      if (res.ok) { reveal(); finish(); bAgain.hidden = true; bShow.hidden = true; }
+      if (res.ok) { reveal(); finish(); bAgain.hidden = true; bShow.hidden = true; if (!res.partial) done = 'ok'; }
       else { bAgain.hidden = false; bShow.hidden = shown || !(item.model && item.model.length) && !api.showAnswer; }
+      if (replay) return;
       if (ctx.onResult) ctx.onResult({ ok: !!res.ok, first: !!res.ok && tries === 1 && !shown, shown: shown });
-    });
+      keep();
+    }
+    bCheck.addEventListener('click', function () { check(false); });
     bAgain.addEventListener('click', function () {
       api.clear(); api.lock(false);
       card.classList.remove('is-right', 'is-wrong');
@@ -363,14 +421,31 @@
       if (api.focus) api.focus();
     });
     bShow.addEventListener('click', function () {
-      shown = true;
+      shown = true; done = 'shown';
       if (api.showAnswer) api.showAnswer();
       reveal(); finish(); bShow.hidden = true;
       if (ctx.onResult) ctx.onResult({ ok: false, first: false, shown: true });
+      keep();
     });
     bNext.addEventListener('click', function () { if (ctx.onNext) ctx.onNext(); });
-    /* a question already answered on an earlier visit shows its answer and moves on freely */
-    if (ctx.state && (ctx.state.ok || ctx.state.shown)) { bNext.hidden = !ctx.onNext; }
+    /* the pupil's work on this question from an earlier visit, as they left it */
+    var W = ctx.work;
+    if (W && api.put) {
+      try { api.put(W.a); } catch (e) {}
+      if (W.c === 'ok') check(true);
+      else if (W.c === 'shown') {
+        shown = true; done = 'shown';
+        if (api.showAnswer) api.showAnswer();
+        reveal(); finish(); bCheck.hidden = true; bShow.hidden = true;
+        verdict.className = 'verdict verdict--wait'; verdict.textContent = 'The answer is shown.';
+      }
+    }
+    /* a question already answered on an earlier visit moves on freely; answered on another computer (or before answers were
+       kept), it says so, so nobody thinks their answer was lost */
+    if (ctx.state && (ctx.state.ok || ctx.state.shown)) {
+      bNext.hidden = !ctx.onNext;
+      if (!(W && W.c)) { verdict.className = 'verdict verdict--wait'; verdict.textContent = 'You have answered this question before, and it counts. Answer it again to practise, or go to the next one.'; }
+    }
     return { bar: bar };
   }
 
@@ -451,7 +526,13 @@
         return { ok: !!o.ok, why: o.why, help: '' };
       },
       clear: function () { buttons.forEach(function (x) { x.el.classList.remove('is-right', 'is-wrong', 'is-on'); x.el.setAttribute('aria-pressed', 'false'); }); chosen = -1; },
-      lock: function (b) { locked = b; }
+      lock: function (b) { locked = b; },
+      snap: function () { return chosen; },
+      put: function (i) {
+        if (typeof i !== 'number' || !item.options[i]) return;
+        chosen = i;
+        buttons.forEach(function (x) { x.el.classList.toggle('is-on', x.i === i); x.el.setAttribute('aria-pressed', x.i === i ? 'true' : 'false'); });
+      }
     });
     return sh.card;
   }
@@ -503,6 +584,8 @@
       },
       clear: function () { slots.forEach(function (s) { if (s.el.classList.contains('is-wrong')) s.el.classList.remove('is-wrong'); s.el.classList.remove('is-right'); }); },
       lock: function (b) { slots.forEach(function (s) { s.el.disabled = b; }); },
+      snap: function () { return slots.map(function (s) { return s.el.value; }); },
+      put: function (a) { (a || []).forEach(function (v, k) { var s = slots[k]; if (!s || v === '' || v == null || !s.opts[+v]) return; s.el.value = String(v); s.el.classList.add('is-set'); }); },
       showAnswer: function () { slots.forEach(function (s) { s.el.value = '0'; s.el.classList.remove('is-wrong'); s.el.classList.add('is-right'); s.el.disabled = true; }); }
     });
     return sh.card;
@@ -559,6 +642,11 @@
       },
       clear: function () { answer.classList.remove('is-right', 'is-wrong'); },
       lock: function (b) { locked = b; },
+      snap: function () { return placed.slice(); },
+      put: function (a) {
+        (a || []).forEach(function (i) { if (tiles[i] && placed.indexOf(i) < 0) { placed.push(i); answer.appendChild(tiles[i]); } });
+        ph.hidden = placed.length > 0;
+      },
       showAnswer: function () {
         placed.slice().forEach(function (i) { pool.appendChild(tiles[i]); });
         placed = item.chunks.map(function (_, i) { return i; });
@@ -669,6 +757,29 @@
       sig: function () { return phase + ':' + flaws.map(function (r) { return (found[r.k] ? 'f' : '') + (r.val == null ? '' : r.val); }).join(',') + ':' + line.querySelectorAll('[data-miss="1"]').length; },
       clear: function () { flaws.forEach(function (r) { if (r.el.classList.contains('is-wrong')) { r.el.classList.remove('is-wrong'); } r.el.classList.remove('is-right'); }); },
       lock: function (b) { lockedAll = b; },
+      /* the find step's marks (found flaws, and other words marked by mistake, by their place), then the replacements */
+      snap: function () {
+        var ws = Array.prototype.slice.call(line.querySelectorAll('.w'));
+        return { p: phase, f: flaws.filter(function (r) { return found[r.k]; }).map(function (r) { return r.k; }),
+                 m: ws.map(function (w, i) { return w.dataset.miss === '1' ? i : -1; }).filter(function (i) { return i >= 0; }),
+                 v: flaws.map(function (r) { return r.val; }) };
+      },
+      put: function (a) {
+        if (!a) return;
+        if (item.find && a.p === 'fix') {
+          phase = 'fix';
+          flaws.forEach(function (r) { r.el.classList.remove('flaw--hidden', 'is-suspect'); });
+          tip.textContent = 'You found them. Now tap each one and choose the word that scores.';
+        } else if (item.find) {
+          (a.f || []).forEach(function (k) { var r = flaws[k]; if (r) { found[k] = true; r.el.classList.add('is-suspect'); } });
+          var ws = line.querySelectorAll('.w');
+          (a.m || []).forEach(function (i) { var w = ws[i]; if (w) { w.classList.add('is-suspect'); w.dataset.miss = '1'; } });
+        }
+        if (phase === 'fix') (a.v || []).forEach(function (v, k) {
+          var r = flaws[k]; if (!r || v == null || r.fl.opts[v] == null) return;
+          r.val = v; r.el.classList.add('is-set'); r.el.querySelector('.flaw__now').textContent = r.fl.opts[v];
+        });
+      },
       showAnswer: function () {
         phase = 'fix';
         flaws.forEach(function (r) { r.el.classList.remove('flaw--hidden', 'is-suspect', 'is-wrong'); r.el.classList.add('is-set', 'is-right'); r.el.querySelector('.flaw__now').textContent = r.fl.fix; });
@@ -732,6 +843,8 @@
       sig: function () { return els.map(function (e) { return e.el.classList.contains('is-cut') ? 1 : 0; }).join(''); },
       clear: function () { line.classList.remove('is-right', 'is-wrong'); },
       lock: function (b) { locked = b; },
+      snap: function () { return els.map(function (e) { return e.el.classList.contains('is-cut') ? 1 : 0; }); },
+      put: function (a) { if (!Array.isArray(a)) return; els.forEach(function (e, i) { e.el.classList.toggle('is-cut', !!a[i]); }); count(); },
       showAnswer: function () { els.forEach(function (e) { e.el.classList.toggle('is-cut', !!e.c.x); }); count(); locked = true; line.classList.add('is-right'); }
     });
     return sh.card;
@@ -753,6 +866,13 @@
       if (dy && c.animate && !(still && still.matches)) c.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 200, easing: 'ease-out' });
       if (c.dataset.i === String(moved)) { c.classList.add('is-moved'); setTimeout(function () { c.classList.remove('is-moved'); }, 900); }
     });
+  }
+  /* a kept order is used only when it is still an order of these same pieces */
+  function samePieces(a, n) {
+    if (!Array.isArray(a) || a.length !== n) return false;
+    var s = a.slice().sort(function (x, y) { return x - y; });
+    for (var i = 0; i < n; i++) if (s[i] !== i) return false;
+    return true;
   }
   /* one place in an order list: the number (CSS), then the card that moves */
   function orow(text, i, up, dn) {
@@ -798,6 +918,8 @@
       check: function () { var ok = isRight(cur); list.classList.add(ok ? 'is-right' : 'is-wrong'); return { ok: ok }; },
       clear: function () { list.classList.remove('is-right', 'is-wrong'); },
       lock: function (b) { locked = b; draw(); },
+      snap: function () { return cur.slice(); },
+      put: function (a) { if (samePieces(a, item.steps.length)) { cur = a.slice(); draw(); } },
       showAnswer: function () { cur = right.slice(); locked = true; draw(); list.classList.add('is-right'); }
     });
     return sh.card;
@@ -833,14 +955,10 @@
       inp.setAttribute('autocapitalize', 'off');
       inp.setAttribute('aria-label', 'Gap ' + (gaps.length + 1));
       inp.size = Math.max(6, Math.min(26, p.acc[0].length + 2));
-      var hb = btn('?', 'hintbtn'); hb.setAttribute('aria-label', 'Show the first letter');
-      var g = { el: inp, acc: p.acc, hint: 0 };
-      hb.addEventListener('click', function () {
-        g.hint = Math.min(g.hint + 1, p.acc[0].length);
-        inp.placeholder = p.acc[0].slice(0, g.hint) + '…';
-        inp.focus();
-      });
-      inp.addEventListener('input', function () { inp.classList.remove('is-right', 'is-wrong'); });
+      var hb = btn('?', 'hintbtn');
+      var g = { el: inp, acc: p.acc };
+      letterHint(hb, inp, p.acc[0], false);
+      inp.addEventListener('input', function () { inp.classList.remove('is-right', 'is-wrong'); spellClear(inp); });
       inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { var c = sh.card.querySelector('.card__foot .btn--go:not([hidden])'); if (c) c.click(); } });
       wrap.appendChild(inp); wrap.appendChild(hb);
       gaps.push(g); line.appendChild(wrap);
@@ -866,17 +984,24 @@
           var seen = {};
           grp.forEach(function (gi) { var w = T.norm(gaps[gi].el.value); if (seen[w]) twice[gi] = true; seen[w] = true; });
         });
+        var slips = 0;
         gaps.forEach(function (g, i) {
           var acc = accOf[i], r = twice[i] ? { ok: false } : T.match(g.el.value, acc);
           g.el.classList.add(r.ok ? 'is-right' : 'is-wrong');
-          if (!r.ok) wrong++;
-          else if (r.near) near.push('“' + T.esc(g.el.value.trim()) + '” is accepted, but check the spelling: <b>' + T.esc(acc[0]) + '</b>.');
-          else { var cn = T.caseNote(g.el.value, acc); if (cn) near.push(cn); }
+          if (!r.ok) { wrong++; spellClear(g.el); }
+          else if (r.near) { slips++; near.push(spellMark(g.el, r)); }
+          else { spellClear(g.el); var cn = T.caseNote(g.el.value, acc); if (cn) near.push(cn); }
         });
-        return { ok: !wrong, say: wrong ? '✗ ' + (gaps.length - wrong) + ' of ' + gaps.length + ' right' : '✓ Correct', whyHTML: wrong ? '' : near.join('<br>') + (near.length && item.why ? '<br>' : '') + (item.why ? T.tags(item.why) : '') };
+        /* a slip is said even when another gap is wrong: the amber box would otherwise go unexplained */
+        return { ok: !wrong, near: slips > 0,
+                 say: wrong ? '✗ ' + (gaps.length - wrong) + ' of ' + gaps.length + ' right' : slips ? '✓ Correct, but check the spelling' : '✓ Correct',
+                 whyHTML: wrong ? (near.length ? 'Look again at the parts marked in red, then try once more.<br>' + near.join('<br>') : '')
+                                : near.join('<br>') + (near.length && item.why ? '<br>' : '') + (item.why ? T.tags(item.why) : '') };
       },
       clear: function () { gaps.forEach(function (g) { g.el.classList.remove('is-right'); }); },
       lock: function (b) { gaps.forEach(function (g) { g.el.readOnly = b; }); },
+      snap: function () { return gaps.map(function (g) { return g.el.value; }); },
+      put: function (a) { (a || []).forEach(function (v, i) { if (gaps[i] && typeof v === 'string') gaps[i].el.value = v; }); },
       showAnswer: function () { gaps.forEach(function (g) { g.el.value = g.acc[0]; g.el.classList.remove('is-wrong'); g.el.classList.add('is-right'); g.el.readOnly = true; }); }
     });
     return sh.card;
@@ -918,6 +1043,14 @@
       },
       clear: function () { rows.classList.remove('is-right', 'is-wrong'); },
       lock: function (b) { locked = b; },
+      snap: function () { return picks.map(function (p) { return [p.i, p.v]; }); },
+      put: function (a) {
+        (a || []).forEach(function (x) {
+          var p = picks.filter(function (q) { return Array.isArray(x) && q.i === x[0]; })[0];
+          if (!p || !(x[1] >= 0) || item.bins[x[1]] == null) return;
+          p.v = x[1]; p.btns.forEach(function (y, j) { y.classList.toggle('is-on', j === x[1]); y.setAttribute('aria-pressed', j === x[1] ? 'true' : 'false'); });
+        });
+      },
       showAnswer: function () { picks.forEach(function (p) { var k = item.items[p.i].b; p.v = k; p.btns.forEach(function (y, j) { y.classList.toggle('is-on', j === k); }); }); locked = true; rows.classList.add('is-right'); }
     });
     return sh.card;
@@ -961,6 +1094,8 @@
       clear: function () { list.classList.remove('is-right', 'is-wrong'); },
       lock: function (b) { locked = b; boxes.forEach(function (x) { x.cb.disabled = b; }); },
       sig: function () { return boxes.map(function (b) { return b.cb.checked ? 1 : 0; }).join(''); },
+      snap: function () { return boxes.map(function (b) { return b.cb.checked ? 1 : 0; }); },
+      put: function (a) { if (!Array.isArray(a)) return; boxes.forEach(function (b, i) { b.cb.checked = !!a[i]; }); sum(); },
       showAnswer: function () { boxes.forEach(function (b) { b.cb.checked = !!b.p.got; b.cb.disabled = true; }); sum(); list.classList.add('is-right'); }
     });
     return sh.card;
@@ -976,6 +1111,12 @@
     var p = h('p', 'kw__prompt', T.tags(item.prompt));
     sh.body.appendChild(p);
     var api;
+    /* the keyword card also appears when the answer is shown */
+    function showKeyCard() {
+      var fb = sh.card.querySelector('.feedback'); if (!fb) return;
+      fb.hidden = false; fb.className = 'feedback feedback--ok'; fb.innerHTML = keyCard(item);
+      if (global.AL_KO_PAINT) global.AL_KO_PAINT(fb);
+    }
     if (item.input === 'choose') {
       var chosen = -1, locked = false, bs = [];
       var row = h('div', 'kw__opts');
@@ -997,18 +1138,22 @@
         sig: function () { return 'c' + chosen; },
         clear: function () { bs.forEach(function (x) { x.b.classList.remove('is-right', 'is-wrong', 'is-on'); }); chosen = -1; },
         lock: function (b) { locked = b; },
-        showAnswer: function () { bs.forEach(function (x) { x.b.classList.remove('is-wrong', 'is-on'); if (T.norm(item.opts[x.i]) === T.norm(item.key)) x.b.classList.add('is-right'); }); locked = true; }
+        snap: function () { return chosen; },
+        put: function (i) {
+          if (typeof i !== 'number' || item.opts[i] == null) return;
+          chosen = i; bs.forEach(function (x) { x.b.classList.toggle('is-on', x.i === i); x.b.setAttribute('aria-pressed', x.i === i ? 'true' : 'false'); });
+        },
+        showAnswer: function () { bs.forEach(function (x) { x.b.classList.remove('is-wrong', 'is-on'); if (T.norm(item.opts[x.i]) === T.norm(item.key)) x.b.classList.add('is-right'); }); locked = true; showKeyCard(); }
       };
     } else {
       var wrap = h('div', 'kw__type');
       var inp = document.createElement('input'); inp.type = 'text'; inp.className = 'gap gap--wide'; inp.autocomplete = 'off'; inp.spellcheck = false;
       inp.setAttribute('autocapitalize', 'off'); inp.setAttribute('aria-label', 'The keyword');
       inp.placeholder = 'type the keyword';
-      var hb = btn('First letter', 'btn--quiet hintbtn--wide'), hint = 0;
-      hb.addEventListener('click', function () { hint = Math.min(hint + 1, item.key.length); inp.placeholder = item.key.slice(0, hint) + '…'; inp.focus(); });
-      inp.addEventListener('input', function () { inp.classList.remove('is-right', 'is-wrong'); });
+      var hb = btn('', 'btn--quiet hintbtn--wide'), lh = letterHint(hb, inp, item.key, true);
+      inp.addEventListener('input', function () { inp.classList.remove('is-right', 'is-wrong'); spellClear(inp); });
       inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { var c = sh.card.querySelector('.card__foot .btn--go:not([hidden])'); if (c) c.click(); } });
-      wrap.appendChild(inp); wrap.appendChild(hb);
+      wrap.appendChild(inp); wrap.appendChild(hb); wrap.appendChild(lh.count);
       sh.body.appendChild(wrap);
       api = {
         incomplete: 'Type the keyword first.',
@@ -1017,27 +1162,23 @@
           if (!inp.value.trim()) return null;
           var r = T.match(inp.value, [item.key].concat(item.accept || []));
           inp.classList.add(r.ok ? 'is-right' : 'is-wrong');
+          var slip = r.ok && r.near ? spellMark(inp, r) : '';
+          if (!slip) spellClear(inp);
           /* right, but written with the wrong capitals: say how it is written, never refuse it */
           var cap = r.ok && !r.near ? T.caseNote(inp.value, [item.key].concat(item.accept || [])) : '';
-          return { ok: r.ok, whyHTML: r.ok
-            ? (r.near ? 'Accepted — check the spelling: <b>' + T.esc(item.key) + '</b>.<br>' : '') +
-              (cap ? cap + '<br>' : '') + keyCard(item)
+          return { ok: r.ok, near: !!slip, say: slip ? '✓ Correct, but check the spelling' : '', whyHTML: r.ok
+            ? (slip ? slip + '<br>' : '') + (cap ? cap + '<br>' : '') + keyCard(item)
             : '', help: kwMeaning(item) };
         },
         sig: function () { return 't' + T.norm(inp.value); },
         clear: function () {},
         lock: function (b) { inp.readOnly = b; },
-        showAnswer: function () { inp.value = item.key; inp.classList.remove('is-wrong'); inp.classList.add('is-right'); inp.readOnly = true; }
+        snap: function () { return inp.value; },
+        put: function (v) { if (typeof v === 'string') inp.value = v; },
+        showAnswer: function () { inp.value = item.key; spellClear(inp); inp.classList.remove('is-wrong'); inp.classList.add('is-right'); inp.readOnly = true; showKeyCard(); }
       };
     }
-    var f = foot(sh.card, item, ctx, api);
-    /* the keyword card also appears when the answer is shown */
-    sh.card.addEventListener('click', function (e) {
-      if (e.target && e.target.textContent === 'Show the model answer') {
-        var fb = sh.card.querySelector('.feedback'); fb.hidden = false; fb.className = 'feedback feedback--ok'; fb.innerHTML = keyCard(item);
-        if (global.AL_KO_PAINT) global.AL_KO_PAINT(fb);
-      }
-    });
+    foot(sh.card, item, ctx, api);
     return sh.card;
   }
   function keyCard(item) {
@@ -1065,11 +1206,21 @@
     var stage = h('div', 'estage'); sh.body.appendChild(stage);
     var marksNeeded = item.marks || item.frames.length;
     var state = { step: 0, firstAll: true, tries: 0, wrongAt: [0, 0, 0], changed: false };
-    sh.card.addEventListener('input', function () { state.changed = true; }, true);
-    sh.card.addEventListener('change', function () { state.changed = true; }, true);
+    /* Kept as the pupil goes (26 Nov 2026; pupils lost their first two steps when they went back to another question and
+       came back to this one): the step they are on, its answer, and how far they got, handed to app.js after every check
+       and a moment after every change; drawn again from ctx.work.x when they return. */
+    var isDone = false, keepT = null;
+    function keep() {
+      clearTimeout(keepT); keepT = null;
+      if (!ctx.onWork) return;
+      try { ctx.onWork({ x: { st: state.step, m: mode, fa: state.firstAll, sh: !!state.shown, w: state.wrongAt.slice(), t: state.tries, ss: !!state.stepShown, a: cur && cur.snap ? cur.snap() : null, d: isDone } }); } catch (e) {}
+    }
+    function keepSoon() { if (ctx.onWork && !keepT) keepT = setTimeout(keep, 400); }
+    sh.card.addEventListener('input', function () { state.changed = true; keepSoon(); }, true);
+    sh.card.addEventListener('change', function () { state.changed = true; keepSoon(); }, true);
     sh.card.addEventListener('click', function (e) {       /* a row moved, a box ticked: never the card's own buttons */
       var t = e.target;
-      if (t && t.closest && !t.closest('.card__foot') && t.closest('button,input,select,label,[role="button"],[tabindex]')) state.changed = true;
+      if (t && t.closest && !t.closest('.card__foot') && t.closest('button,input,select,label,[role="button"],[tabindex]')) { state.changed = true; keepSoon(); }
     }, true);
     var goodIdx = item.ideas.map(function (x, i) { return x.ok ? i : -1; }).filter(function (i) { return i >= 0; });
 
@@ -1085,8 +1236,8 @@
     sh.card.appendChild(bar); sh.card.appendChild(verdict); sh.card.appendChild(fb); sh.card.appendChild(modelHost); sh.card.appendChild(after);
     var cur = null;       /* the api of the step on screen */
 
-    function say(ok, text, why) {
-      verdict.className = 'verdict ' + (ok ? 'verdict--ok' : 'verdict--no'); verdict.textContent = text;
+    function say(ok, text, why, near) {
+      verdict.className = 'verdict ' + (ok ? 'verdict--ok' : 'verdict--no') + (ok && near ? ' verdict--near' : ''); verdict.textContent = text;
       fb.hidden = !why; fb.className = 'feedback ' + (ok ? 'feedback--ok' : 'feedback--no'); fb.innerHTML = why || '';
     }
     function quiet() { verdict.textContent = ''; verdict.className = 'verdict'; fb.hidden = true; }
@@ -1120,6 +1271,8 @@
         clear: function () { list.classList.remove('is-right', 'is-wrong'); },
         lock: function (b) { boxes.forEach(function (x) { x.cb.disabled = b; }); },
         sig: function () { return boxes.map(function (b) { return b.cb.checked ? 1 : 0; }).join(''); },
+        snap: function () { var on = {}; boxes.forEach(function (b) { if (b.cb.checked) on[b.i] = 1; }); return item.ideas.map(function (_, i) { return on[i] ? 1 : 0; }); },
+        put: function (a) { if (Array.isArray(a)) boxes.forEach(function (b) { b.cb.checked = !!a[b.i]; }); },
         show: function () { boxes.forEach(function (b) { b.cb.checked = !!item.ideas[b.i].ok; b.cb.disabled = true; }); list.classList.add('is-right'); }
       };
     }
@@ -1148,6 +1301,8 @@
         check: function () { var ok = cur2.join() === right.join(); list.classList.add(ok ? 'is-right' : 'is-wrong'); return { ok: ok, why: ok ? '' : 'Not the order an examiner follows. What has to happen first for the next idea to be true?' }; },
         clear: function () { list.classList.remove('is-right', 'is-wrong'); },
         lock: function (b) { locked = b; draw(); },
+        snap: function () { return cur2.slice(); },
+        put: function (a) { if (samePieces(a, item.frames.length)) { cur2 = a.slice(); draw(); } },
         show: function () { cur2 = right.slice(); locked = true; draw(); list.classList.add('is-right'); }
       };
     }
@@ -1162,7 +1317,7 @@
           if (p.s != null) { li.appendChild(h('span', '', T.tags(p.s))); return; }
           var inp = document.createElement('input'); inp.type = 'text'; inp.className = 'gap'; inp.autocomplete = 'off'; inp.spellcheck = false;
           inp.setAttribute('autocapitalize', 'off'); inp.size = Math.max(6, Math.min(24, p.acc[0].length + 2));
-          inp.addEventListener('input', function () { inp.classList.remove('is-right', 'is-wrong'); });
+          inp.addEventListener('input', function () { inp.classList.remove('is-right', 'is-wrong'); spellClear(inp); });
           gaps.push({ el: inp, acc: p.acc }); li.appendChild(inp);
         });
         lines.appendChild(li);
@@ -1171,12 +1326,20 @@
       cur = {
         check: function () {
           if (gaps.some(function (g) { return !g.el.value.trim(); })) return null;
-          var wrong = 0;
-          gaps.forEach(function (g) { var r = T.match(g.el.value, g.acc); g.el.classList.add(r.ok ? 'is-right' : 'is-wrong'); if (!r.ok) wrong++; });
-          return { ok: !wrong, say: wrong ? '✗ ' + (gaps.length - wrong) + ' of ' + gaps.length + ' keywords right' : '✓ Full marks', why: '' };
+          var wrong = 0, near = [];
+          gaps.forEach(function (g) {
+            var r = T.match(g.el.value, g.acc);
+            g.el.classList.add(r.ok ? 'is-right' : 'is-wrong');
+            if (!r.ok) { wrong++; spellClear(g.el); } else if (r.near) near.push(spellMark(g.el, r)); else spellClear(g.el);
+          });
+          return { ok: !wrong, near: near.length > 0,
+                   say: wrong ? '✗ ' + (gaps.length - wrong) + ' of ' + gaps.length + ' keywords right' : near.length ? '✓ Full marks, but check the spelling' : '✓ Full marks',
+                   why: near.join('<br>') };
         },
         clear: function () { gaps.forEach(function (g) { g.el.classList.remove('is-right'); }); },
         lock: function (b) { gaps.forEach(function (g) { g.el.readOnly = b; }); },
+        snap: function () { return gaps.map(function (g) { return g.el.value; }); },
+        put: function (a) { (a || []).forEach(function (v, i) { if (gaps[i] && typeof v === 'string') gaps[i].el.value = v; }); },
         show: function () { gaps.forEach(function (g) { g.el.value = g.acc[0]; g.el.classList.remove('is-wrong'); g.el.classList.add('is-right'); g.el.readOnly = true; }); }
       };
     }
@@ -1187,7 +1350,7 @@
     var mode = 'check';
     function advanceMode() { mode = 'advance'; bGo.textContent = 'Next step →'; bGo.hidden = false; }
     bGo.addEventListener('click', function () {
-      if (mode === 'advance') { mode = 'check'; bGo.textContent = 'Check'; quiet(); nextStep[state.step](); return; }
+      if (mode === 'advance') { mode = 'check'; bGo.textContent = 'Check'; quiet(); state.stepShown = false; nextStep[state.step](); keep(); return; }
       var r = cur.check();
       if (!r) { verdict.className = 'verdict verdict--wait'; verdict.textContent = 'Finish this step first.'; return; }
       state.tries++;
@@ -1198,27 +1361,54 @@
         if (!state.wrongAt[state.step] || (sg != null ? sg !== state.lastWrong : state.changed)) state.wrongAt[state.step]++;   /* the same ticks checked again are not a new try */
         state.lastWrong = sg; state.changed = false;
         var help = state.wrongAt[state.step] >= 2 && helpOn() && r.help ? helpBox(r.help) : '';   /* accommodation: after the 2nd wrong check of this step */
-        say(false, r.say || '✗ Not yet', (r.why || '') + help); bGo.hidden = true; bAgain.hidden = false; bShow.hidden = false; return;
+        say(false, r.say || '✗ Not yet', (r.why || '') + help); bGo.hidden = true; bAgain.hidden = false; bShow.hidden = false; keep(); return;
       }
-      say(true, r.say || '✓ Right', r.why);
-      if (state.step < 2) { advanceMode(); return; }
+      say(true, r.say || '✓ Right', r.why, r.near);
+      if (state.step < 2) { advanceMode(); keep(); return; }
       done();
     });
     bAgain.addEventListener('click', function () { cur.clear(); cur.lock(false); quiet(); bAgain.hidden = true; bShow.hidden = true; bGo.hidden = false; bGo.textContent = 'Check'; mode = 'check'; });
     bShow.addEventListener('click', function () {
-      state.shown = true;
+      state.shown = true; state.stepShown = true;
       cur.show(); bShow.hidden = true; bAgain.hidden = true;
-      if (state.step < 2) advanceMode();
+      if (state.step < 2) { advanceMode(); keep(); }
       else done();
     });
-    function done() {
+    /* silent: the finished question drawn again on a later visit, counted nowhere a second time */
+    function done(silent) {
       bGo.hidden = true; bAgain.hidden = true; bShow.hidden = true;
       var m = modelBlock(item); if (m && !modelHost.firstChild) modelHost.appendChild(m);
       bNext.hidden = !ctx.onNext;
+      isDone = true;
+      if (silent) return;
       if (ctx.onResult) ctx.onResult({ ok: !state.shown, first: state.firstAll && !state.shown, shown: !!state.shown });
+      keep();
     }
     bNext.addEventListener('click', function () { if (ctx.onNext) ctx.onNext(); });
-    think();
+    /* the pupil's work from an earlier visit: the step they reached, its answer, and whether it was checked */
+    var W = ctx.work && ctx.work.x;
+    if (W && W.st >= 0 && W.st <= 2) {
+      state.firstAll = W.fa !== false; state.shown = !!W.sh; state.tries = +W.t || 0;
+      if (Array.isArray(W.w)) state.wrongAt = [0, 1, 2].map(function (i) { return +W.w[i] || 0; });
+      [think, orderStep, writeStep][W.st]();
+      if (W.st === state.step) {
+        try { if (cur.put) cur.put(W.a); } catch (e) {}
+        if (W.d || W.m === 'advance') {
+          /* checked right then (its marks come back), or its answer was shown */
+          var r0 = W.ss ? null : cur.check();
+          cur.lock(true);
+          if (r0 && r0.ok) say(true, r0.say || '✓ Right', r0.why, r0.near);
+          else { cur.clear(); cur.show(); state.stepShown = true; verdict.className = 'verdict verdict--wait'; verdict.textContent = 'The answer is shown.'; }
+          if (W.d) done(true); else advanceMode();
+        }
+      }
+    } else {
+      think();
+      if (ctx.state && (ctx.state.ok || ctx.state.shown)) {
+        bNext.hidden = !ctx.onNext;
+        verdict.className = 'verdict verdict--wait'; verdict.textContent = 'You have answered this question before, and it counts. Answer it again to practise, or go to the next one.';
+      }
+    }
     return sh.card;
   }
 

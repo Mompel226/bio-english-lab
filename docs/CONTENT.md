@@ -197,6 +197,21 @@ mesophyll) — give the keyword `ask:`, the question's own prompt; the flashcard
 The build stops if a one-word keyword's prompt still spells it, or if a keyword has too few others in
 its topic to choose from (a unit cut out of a topic, like 14.5, borrows from the topic).
 
+## Words from later topics
+
+A question may need a keyword that a later topic teaches (Topic 1 asks how strains of MRSA are told apart; MRSA is Topic
+15's). That is fine, and nothing has to be written for it: the build finds every keyword of a LATER topic (in the order
+`units.master.js` teaches them) in what a topic's cards say, and the page puts a dotted line under it; a tap shows the
+keyword's own meaning, the topic that teaches it and ＋ My words, and the topic's keyword page lists them under
+"Words from later topics" (26 Nov 2026; Daniel: "add an explanation of these topics in the Bio English so that they can use
+them and understand them"). The meaning is the keyword list's `en_def`, so a new later word needs a keyword, not a note on
+the card. Two things to keep an eye on, both in `../bio-english-lab-source/later-words.json`:
+- `everyday`: a keyword every pupil knows in everyday English, or that the cards use in its everyday sense (skin, leaf,
+  absorption of water, a source of energy). It is never marked.
+- `otherSense`: a keyword whose cards in one topic mean something else (an insect's thorax in Topic 1; Topic 7's mineral
+  ions in the diet). It is not marked in those topics.
+`node tools/build.mjs --check --later` prints each topic's list. It is display only: adding a word changes no question.
+
 ## Etymology (word parts)
 
 `wordparts.master.js` (beside the keyword list, never published) is the ONE list of the Greek and Latin

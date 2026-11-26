@@ -752,3 +752,40 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 650; letter-spacing: -.01em
 .fc__k--y { color: var(--green); }
 .fc__k--r { color: var(--amber); }
 .fc__k--n { color: var(--red); }
+
+/* ---------- words on the cards (26 Nov 2026; js/app.js dressCard): a later topic's word, Look up a word, the meaning box.
+   Teal means "tap it for its meaning" here and nothing else on a card. ---------- */
+.lu-bar { margin-left: auto; }
+.lu-btn { font: 600 12.5px/1 var(--sans); padding: 6px 11px; min-height: 30px; border-radius: var(--pill); border: 1px solid var(--teal-hl); background: var(--card); color: var(--teal); cursor: pointer; white-space: nowrap; }
+.lu-btn:hover { border-color: var(--teal); }
+.lu-btn[aria-pressed="true"] { background: var(--teal); border-color: var(--teal); color: #fff; }
+.lu-hint { margin: -2px 0 10px; padding: 8px 11px; border-left: 3px solid var(--teal); background: rgba(11, 95, 122, .07); font-size: 14.5px; line-height: 1.4; color: var(--ink-2); }
+.lu-later { text-decoration: underline dotted var(--teal); text-decoration-thickness: 2px; text-underline-offset: 3px; cursor: pointer; border-radius: 3px; }
+.lu-later:hover, .lu-later:focus-visible { background: var(--teal-hl); outline: none; }
+.is-lookup .lu-w { cursor: pointer; border-radius: 3px; }
+.is-lookup .lu-w:hover, .is-lookup .lu-w:focus-visible { background: var(--teal-hl); outline: none; }
+.is-lookup .lu-k { text-decoration: underline dotted var(--teal); text-underline-offset: 3px; }
+.lu-opts { margin: 6px 0 0; font-size: 15px; color: var(--ink-2); }
+.lu-pop { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); width: min(560px, calc(100vw - 20px)); max-height: 62vh; overflow: auto;
+  background: var(--card); border: 1px solid var(--rule); border-top: 4px solid var(--teal); border-radius: var(--r); box-shadow: 0 10px 30px rgba(10, 20, 28, .2); padding: 12px 46px 14px 14px; z-index: 55; }
+.lu-pop__x { position: absolute; top: 6px; right: 6px; width: 36px; height: 36px; min-height: 0; padding: 0; border: 0; background: transparent; font-size: 18px; color: var(--muted); border-radius: 50%; cursor: pointer; }
+.lu-pop__x:hover, .lu-pop__x:focus-visible { background: var(--paper-2); }
+.lu-pop__w + .lu-pop__w { border-top: 1px solid var(--rule-2); margin-top: 10px; padding-top: 10px; }
+.lu-pop__t { margin: 0 0 6px; font-size: 17px; line-height: 1.5; }
+.lu-pop__t .mw__add { margin-left: 6px; }
+.lu-pop__from { margin: 0 0 4px; font-size: 13.5px; line-height: 1.4; font-weight: 600; color: var(--teal); }
+.lu-pop__d { margin: 0; font-size: 15.5px; line-height: 1.45; color: var(--ink); }
+.lu-pop__d .words__kodef { display: block; margin-top: 6px; }
+.lu-pop__links { margin: 8px 0 0; display: flex; gap: 16px; flex-wrap: wrap; }
+.lu-pop__links a { font-weight: 600; color: var(--teal); }
+.later__p { color: var(--ink-2); }
+.words__from { font: 500 10.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--teal); border: 1px solid var(--teal-hl); border-radius: 4px; padding: 2px 5px; margin-left: 6px; vertical-align: middle; }
+.words__fromt { display: block; margin-top: 6px; font-size: 14px; color: var(--muted); }
+
+/* a forgiven spelling slip (js/engine.js spellMark): amber, never the green of a word spelt right */
+.gap.is-near, .gap.is-right.is-near { border-color: var(--amber); background: #FBF3DF; color: var(--amber); text-decoration: underline wavy var(--amber); text-underline-offset: 4px; }
+.spell { display: inline-block; margin: 2px 0 2px 6px; padding: 3px 9px; border-radius: var(--pill); background: var(--amber-hl); color: var(--amber); font: 600 13px/1.25 var(--sans); vertical-align: middle; }
+.verdict--near { color: var(--amber); }
+/* the letter hints (js/engine.js letterHint): what the next press does, and how many letters are shown */
+.hintn { margin-left: 8px; font-size: 13.5px; color: var(--muted); }
+.hintbtn:disabled, .hintbtn--wide:disabled { opacity: .55; cursor: default; }

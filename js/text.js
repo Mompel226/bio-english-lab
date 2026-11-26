@@ -7,6 +7,9 @@
    slip of the finger in a long word is forgiven too — but never when the slip lands on
    ANOTHER biology word. "meiosis" typed for "mitosis" is two letters away, "ilium" for
    "ileum" one: those are different answers, not typing errors, and are marked wrong.
+   How many slips: none in a word of 4 letters or fewer, one in 5–9 letters, two in 10 or more
+   (a wrong, missing or extra letter, or two letters swapped). A forgiven slip is still SHOWN:
+   the box turns amber and the right spelling appears beside it (26 Nov 2026).
    ============================================================ */
 (function (global) {
   'use strict';
@@ -17,18 +20,26 @@
     });
   }
 
-  /* American → British, whole words or word endings a 0610 answer might use */
+  /* American → British, whole words or word endings a 0610 answer might use. Both the typed answer and the accepted ones
+     are folded the same way before they are compared, so either spelling is right and never counted as a typing slip
+     (26 Nov 2026, Daniel: "double check that both spellings are accepted"; tools/spelling-check.mjs tries every accepted
+     answer of the site in its American spelling). */
   var US = [
     [/\bhemo/g, 'haemo'], [/\bhema/g, 'haema'], [/\besophag/g, 'oesophag'], [/\bestrogen/g, 'oestrogen'],
-    [/\bfetus/g, 'foetus'], [/\bfeces\b/g, 'faeces'], [/\bsulfur/g, 'sulphur'], [/\banemi/g, 'anaemi'],
-    [/\bleukocyte/g, 'leucocyte'], [/\bcolor/g, 'colour'], [/\bfiber/g, 'fibre'], [/\bcenter/g, 'centre'],
-    [/\bliter/g, 'litre'], [/\bmeter\b/g, 'metre'], [/\bmeters\b/g, 'metres'], [/\bcentimeter/g, 'centimetre'],
-    [/\bmillimeter/g, 'millimetre'], [/\bmicrometer/g, 'micrometre'], [/\bdefense/g, 'defence'],
-    [/\bbehavior/g, 'behaviour'], [/\banalyz/g, 'analys'], [/\bpaediatric/g, 'paediatric'],
-    [/iz(e|es|ed|ing|ation|ations)\b/g, 'is$1'], [/yz(e|es|ed|ing)\b/g, 'ys$1']
+    [/\bfet(us|uses|al)\b/g, 'foet$1'], [/\bfec(es|al)\b/g, 'faec$1'], [/\bsulf/g, 'sulph'], [/\banemi/g, 'anaemi'],
+    [/\bleukocyte/g, 'leucocyte'], [/\bleukem/g, 'leukaem'], [/glycem/g, 'glycaem'], [/\bdiarrhea/g, 'diarrhoea'],
+    [/\bedema/g, 'oedema'], [/\bameb/g, 'amoeb'], [/\banesthe/g, 'anaesthe'], [/\bcesarean/g, 'caesarean'],
+    [/\bpediatric/g, 'paediatric'], [/\bcecum/g, 'caecum'], [/\bisch(e)mi/g, 'ischaemi'],
+    [/\bcolor/g, 'colour'], [/\b(vap|tum|od|flav|lab|fav|hum|neighb|harb|vig)or(s|ed|ing|able|ably|ite|ites|less)?\b/g, '$1our$2'],
+    [/\bmold(s|y|ed|ing)?\b/g, 'mould$1'], [/\bgray\b/g, 'grey'], [/\baluminum\b/g, 'aluminium'],
+    [/\bfiber/g, 'fibre'], [/\bcenter/g, 'centre'],
+    [/\b(milli|centi|deci|micro)?liter(s?)\b/g, '$1litre$2'], [/\b(milli|centi|deci|kilo|micro|nano)?meter(s?)\b/g, '$1metre$2'],
+    [/\bdefense/g, 'defence'], [/\bbehavior/g, 'behaviour'], [/\banalyz/g, 'analys'],
+    [/\b(label|model|fuel|signal|channel|level|travel|cancel|dial|total)(ed|ing|er|ers)\b/g, '$1l$2'],
+    [/iz(e|es|ed|ing|er|ers|ation|ations)\b/g, 'is$1'], [/yz(e|es|ed|ing|er|ers)\b/g, 'ys$1']
   ];
-  /* The foetus / fetus pair is the one place Cambridge itself prints both; either is fine,
-     so both are folded to one form before comparing. */
+  /* A unit name keeps its own metre: "thermometer", "potometer" and "colorimeter" are instruments, so only metre and litre
+     with a prefix are folded. The foetus / fetus pair is one place Cambridge itself prints both. */
 
   function norm(s) {
     var t = String(s == null ? '' : s).toLowerCase();
@@ -78,6 +89,71 @@
     (list || []).forEach(function (w) { var n = norm(w); if (n) KNOWN[n] = true; });
   }
 
+  /* ---------- the keywords inside a piece of text (26 Nov 2026) ----------
+     One finder for the page (a word from a later topic marked on a card; a word tapped in look-up) and for tools/build.mjs
+     (which later-topic words each topic's questions use), so the two always find the same words. termIndex takes
+     [{ id, t }] (t = the keyword's name as the list writes it) and maps the name, each other name in brackets that is
+     really a name ("singular: alveolus", "windpipe", "CHD") and the singular or plural of its last word to the id.
+     findTerms(text, index) walks the words and takes the longest name at each place (six words at most). A name written
+     in capitals (DNA, MRSA, LH) is found only in capitals. */
+  var ODD_PLURAL = { leaves: 'leaf', teeth: 'tooth', feet: 'foot', mice: 'mouse', children: 'child', men: 'man', women: 'woman' };
+  function termKey(s) {
+    var t = norm(s), w = t.split(' '), last = w[w.length - 1];
+    w[w.length - 1] = ODD_PLURAL[last] || last.replace(/ies$/, 'y').replace(/([^s])s$/, '$1');
+    return w.join(' ');
+  }
+  /* a bracket that says WHERE or WHICH ("Epidermis (leaf)", "Ovary (human)", "(comparison)") is no other name */
+  var NOT_A_NAME = /^(ib|and|in|of|on|at|to|for|from|with|the|types?|e\.?g\.?|plants?|animals?|humans?|leaf|flower|skin|comparison|overview|life process|general|body temperature)\b/i;
+  /* map[name] = [ids]: two keywords with one name (Ovary (human), Ovary (flower)) are both kept, and the page shows both
+     meanings. Names first, then other names, so another name never takes a keyword's own name; a glossary card of the
+     labs (id "g.<word>") takes only a name that no keyword has. */
+  function termIndex(entries) {
+    var map = {}, caps = {}, alts = [];
+    function put(name, id, alt) {
+      name = String(name || '').trim();
+      if (!name) return;
+      var box = caps, k = name;
+      if (!/^[A-Z][A-Z0-9₀-₉]+$/.test(name)) { box = map; k = termKey(name); }
+      if (!k) return;
+      if (!box[k]) box[k] = [id];
+      else if (!alt && box[k].indexOf(id) < 0 && !box[k].alt && String(id).indexOf('g.') !== 0) box[k].push(id);
+      if (alt && box[k].length === 1 && box[k][0] === id) box[k].alt = true;
+    }
+    (entries || []).forEach(function (e) {
+      if (!e || !e.id || !e.t) return;
+      var t = String(e.t), re = /\(([^()]*)\)\s*$/, m;
+      while ((m = t.match(re))) { alts.push([m[1].trim(), e.id]); t = t.slice(0, m.index).trim(); }
+      t.replace(/\([^()]*\)/g, ' ').split(/\s+\/\s+/).forEach(function (n) { put(n.replace(/\s+/g, ' '), e.id, false); });
+    });
+    alts.forEach(function (x) {
+      var a = x[0], sp = a.match(/^(?:singular|plural)\s*:\s*(.+)$/i);
+      if (sp) { put(sp[1], x[1], true); return; }
+      if (/[\/:,]/.test(a) || NOT_A_NAME.test(a)) return;
+      put(a, x[1], true);
+    });
+    return { map: map, caps: caps };
+  }
+  /* → [{ at, end, id, ids, text }] in reading order, never overlapping (ids: every keyword with that name) */
+  function findTerms(text, index) {
+    var out = [], toks = [], re = /[A-Za-zÀ-ÿµ][A-Za-z0-9À-ÿµ'’-]*/g, m;
+    text = String(text == null ? '' : text);
+    if (!index) return out;
+    while ((m = re.exec(text))) toks.push({ at: m.index, end: m.index + m[0].replace(/['’-]+$/, '').length, w: m[0] });
+    for (var i = 0; i < toks.length; i++) {
+      var hit = null;
+      for (var n = Math.min(6, toks.length - i); n >= 1 && !hit; n--) {
+        var at = toks[i].at, end = toks[i + n - 1].end, phrase = text.slice(at, end);
+        if (n > 1 && /[.;:!?]/.test(text.slice(toks[i].end, toks[i + n - 1].at))) continue;   /* a name never runs over a full stop */
+        if (n > 1 && /^(the|a|an)$/i.test(toks[i].w)) continue;                               /* nor starts with "the" */
+        var bare = phrase.replace(/['’]s$/, '');
+        var ids = n === 1 && /^[A-Z][A-Z0-9]+$/.test(bare) ? index.caps[bare] : index.map[termKey(phrase)];
+        if (ids) hit = { at: at, end: end, id: ids[0], ids: ids.slice(), text: phrase, n: n };
+      }
+      if (hit) { out.push(hit); i += hit.n - 1; }
+    }
+    return out;
+  }
+
   /* match(typed, accepted[]) → { ok, exact, near } */
   /* ---------- capitals ----------
      The marker ignores case, and so does an examiner. The site still says how the word is written,
@@ -122,18 +198,20 @@
            (/[A-Z]/.test(shown) ? '.' : ', with no capital letter.');
   }
 
+  /* to = the accepted answer it matched, as the question writes it: a slip is shown beside the box with THAT spelling
+     (26 Nov 2026, pupils: "highlight that I have made a typo", so nobody thinks a misspelt word was spelt right) */
   function match(typed, accepted) {
     var t = norm(typed);
     if (!t) return { ok: false, empty: true };
     var acc = (accepted || []).map(norm);
-    for (var i = 0; i < acc.length; i++) if (acc[i] === t) return { ok: true, exact: true };
+    for (var i = 0; i < acc.length; i++) if (acc[i] === t) return { ok: true, exact: true, to: String(accepted[i]) };
     if (KNOWN[t]) return { ok: false };                          /* a real word, and not this one */
-    var bestAcc = 99, bestKnown = 99, k;
+    var bestAcc = 99, bestAt = -1, bestKnown = 99, k;
     for (i = 0; i < acc.length; i++) {
       var cap = allowance(acc[i].length);
       if (!cap) continue;
       var da = dist(t, acc[i], cap);
-      if (da <= cap && da < bestAcc) bestAcc = da;
+      if (da <= cap && da < bestAcc) { bestAcc = da; bestAt = i; }
     }
     if (bestAcc === 99) return { ok: false };
     for (k in KNOWN) {
@@ -143,7 +221,7 @@
       if (dk < bestKnown) bestKnown = dk;
     }
     if (bestKnown <= bestAcc) return { ok: false };             /* closer to a different word */
-    return { ok: true, exact: false, near: true };
+    return { ok: true, exact: false, near: true, to: String(accepted[bestAt]) };
   }
 
   /* ---------- a model answer, drawn with its parts coloured ----------
@@ -169,5 +247,5 @@
   function words(s) { var p = plain(s).trim(); return p ? p.split(/\s+/).length : 0; }
 
   global.AText = { esc: esc, norm: norm, dist: dist, match: match, know: know, tags: tags, caseNote: caseNote,
-                   plain: plain, words: words, PART: PART };
+                   plain: plain, words: words, PART: PART, termIndex: termIndex, findTerms: findTerms, allowance: allowance };
 })(window);

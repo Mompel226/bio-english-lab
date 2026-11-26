@@ -118,6 +118,7 @@
     });
     if (!any) return false;
     r.g1 = g1; r.best = best; r.items = {}; r.go = R.go + 1;
+    if (P.work) (m.keys || []).forEach(function (k) { delete P.work[k]; });   /* a new round starts with empty cards */
     return true;
   }
   /* the records' letters (key order of the set as it is now) folded into one of this browser's maps: adds only */
@@ -127,6 +128,25 @@
     return n;
   }
   function key(it) { return it.id + '@' + it.h; }
+  /* ---------- answers kept on this computer (26 Nov 2026) ----------
+     Daniel: "questions with multiple steps, sometimes when they go back, they lose their marks, and then they have to restart
+     everything … it should be locally saved". Each card hands over its work as the pupil goes (engine.js: the answer, the
+     step an exam question is on, whether it was checked right or its answer shown); it is kept here with the rest of P, so
+     a question opened again (a dot, Back, a reload, the next day) shows the pupil's own answer as they left it. P.work =
+     { "<id>@<h>": { a | x, c, at } }: a reworded question has a new key and starts empty. Never sent to the records; gone
+     with P when another pupil claims this computer (clearHere), and a set's answers go when its next round starts. */
+  var WORK_MAX = 600;
+  function workOf(k) { return (P.work && P.work[k]) || null; }
+  function keepWork(k, w) {
+    if (!w) return;
+    P.work = P.work || {};
+    w.at = Date.now(); P.work[k] = w;
+    var ks = Object.keys(P.work);
+    if (ks.length > WORK_MAX) ks.sort(function (a, b) { return (P.work[a].at || 0) - (P.work[b].at || 0); })
+      .slice(0, ks.length - WORK_MAX).forEach(function (x) { delete P.work[x]; });
+    save();
+  }
+  function workDone(w) { return !!(w && (w.c === 'ok' || w.c === 'shown' || (w.x && w.x.d))); }
   function scored(set) { return set.items.filter(function (it) { return it.type !== 'learn'; }); }
   /* The numbers a set shows — worked out from META (no need to open the set) when possible */
   function tally(setId) {
@@ -346,6 +366,9 @@
     var FR = (META.frames || {})[uid] || [];
     if (W && W.length) { var wl = h('p', 'sec__p', '<a class="wordslink" href="#/w/' + uid + '">All ' + W.length + ' keywords of this topic, with their definitions' +
       (FR.length ? ', and its ' + FR.length + ' sentence frames' : '') + ' →</a>'); w.appendChild(wl); }
+    var LN = ((META.later || {})[uid] || []).length;
+    if (LN) w.appendChild(h('p', 'sec__p later__p', 'The questions of this topic use ' + LN + ' word' + (LN === 1 ? '' : 's') + ' from later topics, with a dotted line under them. ' +
+      '<a class="wordslink" href="#/w/' + uid + '/later">Learn what they mean →</a>'));
     var kinds = h('div', 'kinds'), anyHw = false;
     ['kw', 'describe', 'explain', 'plan'].forEach(function (k) {
       var ids = u.sets.filter(function (s) { return META.sets[s] && META.sets[s].kind === k; });
@@ -412,15 +435,18 @@
       if (!it) { show(i + 1); return; }
       var m = META.sets[x.sid], u = unitOf(x.sid);
       stage.appendChild(h('p', 'eyebrow', (i + 1) + ' of ' + list.length + ' · ' + (u ? 'Topic ' + T.esc(u.n) + ' · ' : '') + T.esc(m.title)));
-      stage.appendChild(E.render(it, {
+      var rv = E.render(it, {
         onResult: function (res) {
+          if (res.ok || res.shown) rv.dataset.done = '1';
           if (res.learn) return;
           var s = rec(x.sid).items[x.key] || (rec(x.sid).items[x.key] = {});
           if (res.ok && !res.shown) { s.rv = (s.rv || 0) + 1; s.ok = 1; } else { s.rv = 0; if (res.shown) s.shown = 1; }
           s.rat = Date.now(); save(); queueSync(x.sid);
         },
         onNext: function () { show(i + 1); window.scrollTo({ top: 0 }); }
-      }));
+      });
+      dressCard(rv, it, m.unit, false);
+      stage.appendChild(rv);
     }
     show(0);
   }
@@ -518,7 +544,7 @@
   /* ============================================================
      A TOPIC'S KEYWORDS — to read before a test (the same list as the flashcards)
      ============================================================ */
-  function viewWords(uid) {
+  function viewWords(uid, at) {
     var u = META.units[uid], W = (META.words || {})[uid];
     if (!u || !W) { go('#/'); return; }
     main.innerHTML = '';
@@ -551,6 +577,25 @@
     });
     w.appendChild(dl);
     paintKo(dl);
+    /* the words of LATER topics that this topic's questions use (meta.later, 26 Nov 2026): learnt here for now, taught there */
+    var LT = ((META.later || {})[uid] || []).filter(function (id) { return kwAll()[id]; });
+    if (LT.length) {
+      var lh = h('h2', 'sec__h2', 'Words from later topics'); lh.id = 'later'; w.appendChild(lh);
+      w.appendChild(h('p', 'sec__p', 'This topic\u2019s questions also use these ' + LT.length + ' words. A later topic teaches them; for now, learn what they mean. On a question they have a dotted line under them: tap one to see its meaning.'));
+      var dl2 = h('dl', 'words words--later');
+      LT.forEach(function (id) {
+        var x = kwAll()[id], lu = META.units[x.uid], g2 = h('div', 'words__i');
+        g2.appendChild(h('dt', 'words__t', T.esc(x.t) + (lu ? ' <span class="words__from">Topic ' + T.esc(lu.n) + '</span>' : '') +
+          (x.ko && CFG.koreanGloss !== false ? ' <span class="words__ko" lang="ko">' + T.esc(x.ko) + '</span>' : '') + addBtn(id) + (window.Say ? window.Say.html(sayTerm(x.t)) : '')));
+        g2.appendChild(h('dd', 'words__d', T.esc(x.d) + '<span class="words__kodef kogloss" lang="ko" data-kid="' + T.esc(id) + '" hidden></span>' +
+          (lu ? '<span class="words__fromt">You will learn it in Topic ' + T.esc(lu.n) + ': ' + T.esc(lu.title) + ' (Year ' + T.esc(String(lu.year)) + ').</span>' : '')));
+        dl2.appendChild(g2);
+      });
+      dl2.addEventListener('click', function (e) { var ad = e.target.closest('.mw__add'); if (ad) toggleWord(ad.getAttribute('data-add')); });
+      w.appendChild(dl2);
+      paintKo(dl2);
+      if (at === 'later' && !keepScroll) setTimeout(function () { lh.scrollIntoView({ block: 'start' }); }, 0);
+    }
     wantWords();
     /* The sentence frames this topic teaches, gathered from its own questions: the shapes to
        revise before a test. The same sentences the cards use, one after another. */
@@ -739,10 +784,13 @@
       paintDots();
       stage.innerHTML = '';
       if (i >= items.length) { stage.appendChild(summary()); return; }
-      var it = items[i], k = key(it);
+      var it = items[i], k = key(it), work = workOf(k);
       var card = E.render(it, {
         state: r.items[k],
+        work: work,
+        onWork: function (w) { keepWork(k, w); },
         onResult: function (res) {
+          if (res.ok || res.shown) card.dataset.done = '1';
           var s = r.items[k] || (r.items[k] = {});
           if (res.learn) { s.seen = 1; }
           else {
@@ -756,6 +804,8 @@
         },
         onNext: function () { show(i + 1); window.scrollTo({ top: 0 }); }
       });
+      var st0 = r.items[k];
+      dressCard(card, it, m.unit, workDone(work) || !!(st0 && (st0.ok || st0.shown)));
       stage.appendChild(card);
       var f = card.querySelector('input.gap, .opt, .slot, .tile, .kwopt');
       if (f && !matchMedia('(pointer: coarse)').matches && it.type !== 'learn') { try { f.focus({ preventScroll: true }); } catch (e) {} }
@@ -825,12 +875,14 @@
           return;
         }
         var it = list[j], counted = false;
-        stage.appendChild(E.render(it, {
+        var rc = E.render(it, {
           /* a card reports every check: its FIRST report says whether it was right at the first try */
-          onResult: function (res) { if (res.learn || counted) return; counted = true;
+          onResult: function (res) { if (res.ok || res.shown) rc.dataset.done = '1'; if (res.learn || counted) return; counted = true;
             if (res.first) firstRight++; else missedRedo.push(it); },
           onNext: function () { j++; step(); window.scrollTo({ top: 0 }); }
-        }));
+        });
+        dressCard(rc, it, m.unit, false);
+        stage.appendChild(rc);
       }
       var missedRedo = [];
       step();
@@ -963,7 +1015,7 @@
   function markUnsent(on) { try { if (on) localStorage.setItem(UNSENT_KEY, '1'); else localStorage.removeItem(UNSENT_KEY); } catch (e) {} }
   function unsentHere() { try { return !!localStorage.getItem(UNSENT_KEY); } catch (e) { return true; } }
   function hasWork() { return Object.keys(P.sets).some(function (sid) { var r = P.sets[sid]; return r && ((r.items && Object.keys(r.items).length) || goOf(r) > 1); }) ||
-    !!(P.words && Object.keys(P.words).length); }
+    !!(P.words && Object.keys(P.words).length) || !!(P.work && Object.keys(P.work).length); }
   /* the pupil's words (P.words, P.wr) go with the rest: they belong to the same pupil (My words, 9 Nov 2026) */
   function clearHere() { P = { sets: {}, year: P.year }; save(); pending = {}; wordsServer = null; markUnsent(false); }
   /* Whose work THIS page holds in memory: the stored owner it was loaded with, then each pupil it is claimed for; a
@@ -1400,6 +1452,217 @@
     var n = mwCount(['n', 'r']);
     el.innerHTML = n ? '<a class="review review--mw" href="#/my/cards"><b>My words · ' + n + ' to practise</b><span>Read the word, say what it means, then turn the card.</span><span class="review__go">Start →</span></a>' : '';
   }
+  /* ============================================================
+     WORDS ON THE CARDS (26 Nov 2026) — dressCard(card, item, unit, done) on every question card (a set, a redo, Review).
+     1. A word from a LATER topic (meta.later, from tools/build.mjs: Topic 1's questions use MRSA, Topic 15's keyword) has a
+        dotted line under it where the card's own text uses it (its first use on the card); a tap shows what it means, the
+        topic that teaches it, its sounds and ＋ My words. Daniel: "terms from future topics like MRSA … add an explanation
+        … so that they can use them and understand them". Only in plain text: in a button a tap still chooses the answer.
+     2. "Look up a word" on every card (pupils: "I cannot select any of the words here and add them to my word list";
+        Daniel: "you cannot highlight all of the words. That would be very annoying"): one press, and every word on the
+        card can be tapped, the options' words too (a tap then chooses nothing). A keyword shows its meaning and ＋ My words;
+        any other word, the Cambridge Dictionary (English, and English–Korean), since only keywords have checked meanings
+        for the flashcards. "Done", Check or any button under the card ends it.
+     Never the answer: until the card is checked or its answer shown, a word that IS its answer (a keyword card's keyword and
+     its options, a gap's words) shows no meaning and no Korean name, only ＋ My words.
+     ============================================================ */
+  var LU_INDEX = null, LU_POP = null;
+  /* the same words in the same order as tools/build.mjs's finder, so the page marks what the build found */
+  function luIndex() {
+    if (!LU_INDEX) { var K = kwAll(); LU_INDEX = T.termIndex(Object.keys(K).map(function (id) { return { id: id, t: K[id].t }; })); }
+    return LU_INDEX;
+  }
+  function answerOf(item) {
+    var words = [];
+    if (item.type === 'kw') words = [item.key].concat(item.accept || [], item.input === 'choose' ? (item.opts || []) : []);
+    (String(item.text || '') + ' ' + (item.frames || []).join(' ')).replace(/\{\{([^}]+)\}\}/g, function (_, a) { words = words.concat(a.split('|')); return ''; });
+    var ids = {};
+    words.forEach(function (w) { T.findTerms(String(w), luIndex()).forEach(function (hit) { hit.ids.forEach(function (id) { ids[id] = 1; }); }); });
+    return { ids: ids, words: words.map(function (w) { return T.norm(w); }) };
+  }
+  /* text the pupil reads, never what they type or press under the card */
+  var LU_SKIP = 'input,textarea,select,option,script,style,.card__top,.card__foot,.card__next,.verdict,.lu-bar,.lu-hint,.lu-later,.lu-t,.mw__add,.say,.kogloss,.spell';
+  function luTextNodes(root, inButtons) {
+    var out = [], tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), n;
+    while ((n = tw.nextNode())) {
+      if (!/[A-Za-z]/.test(n.nodeValue)) continue;
+      var el = n.parentNode;
+      if (!el || !el.closest || el.closest(LU_SKIP)) continue;
+      if (!inButtons && el.closest('button,label,[role="button"],a')) continue;
+      out.push(n);
+    }
+    return out;
+  }
+  function luQuiet(card, fn) { var L = card.__lu; if (L.mo) L.mo.disconnect(); try { fn(); } finally { if (L.mo) L.mo.observe(card, { childList: true, subtree: true }); } }
+  /* 1. the later topic's words, each at its first use on the card */
+  function luMarkLater(card) {
+    var L = card.__lu; if (!L.later) return;
+    luTextNodes(card, false).forEach(function (n) {
+      var hits = T.findTerms(n.nodeValue, luIndex()).filter(function (hit) {
+        return hit.ids.some(function (id) { return L.later[id]; }) && !card.querySelector('.lu-later[data-id="' + hit.id + '"]');
+      });
+      if (!hits.length) return;
+      var text = n.nodeValue, frag = document.createDocumentFragment(), from = 0, used = {};
+      hits.forEach(function (hit) {
+        if (used[hit.id]) return; used[hit.id] = 1;
+        frag.appendChild(document.createTextNode(text.slice(from, hit.at)));
+        var sp = document.createElement('span');
+        sp.className = 'lu-later'; sp.tabIndex = 0; sp.setAttribute('role', 'button');
+        sp.setAttribute('data-id', hit.id); sp.setAttribute('data-ids', hit.ids.join(' '));
+        sp.setAttribute('aria-label', hit.text + ': a word from a later topic. Show its meaning');
+        sp.textContent = text.slice(hit.at, hit.end);
+        frag.appendChild(sp); from = hit.end;
+      });
+      frag.appendChild(document.createTextNode(text.slice(from)));
+      n.parentNode.replaceChild(frag, n);
+    });
+  }
+  /* 2. look-up: every word of the card made tappable, a keyword (of one or more words) as one piece */
+  function luWrap(card) {
+    /* a drop-down's choices cannot be tapped inside it: while look-up is on they are written out under its sentence */
+    Array.prototype.forEach.call(card.querySelectorAll('select'), function (sel, i) {
+      if (sel.getAttribute('data-lu')) return;
+      var opts = Array.prototype.filter.call(sel.options, function (o) { return o.value !== ''; }).map(function (o) { return o.text; });
+      if (!opts.length) return;
+      sel.setAttribute('data-lu', '1');
+      var box = sel.closest('p,li') || sel.parentNode, line = document.createElement('p'), after = box;
+      while (after.nextSibling && after.nextSibling.classList && after.nextSibling.classList.contains('lu-opts')) after = after.nextSibling;   /* in order: 1, 2 … */
+      line.className = 'lu-opts lu-tmp';
+      line.textContent = 'Choice ' + (i + 1) + ': ' + opts.join(' · ');
+      box.parentNode.insertBefore(line, after.nextSibling);
+    });
+    var re = /[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'’-]*[A-Za-zÀ-ÿ]|[A-Za-z]/g;
+    luTextNodes(card, true).forEach(function (n) {
+      var text = n.nodeValue, hits = T.findTerms(text, luIndex()), wrap = document.createElement('span'), from = 0;
+      wrap.className = 'lu-t';
+      function piece(str, ids) {
+        var w = document.createElement('span');
+        w.className = 'lu-w' + (ids ? ' lu-k' : ''); w.tabIndex = 0; w.setAttribute('role', 'button');
+        if (ids) w.setAttribute('data-ids', ids.join(' '));
+        w.textContent = str; wrap.appendChild(w);
+      }
+      function plain(str) {
+        var last = 0, m; re.lastIndex = 0;
+        while ((m = re.exec(str))) {
+          if (m.index > last) wrap.appendChild(document.createTextNode(str.slice(last, m.index)));
+          piece(m[0], null); last = m.index + m[0].length;
+        }
+        if (last < str.length) wrap.appendChild(document.createTextNode(str.slice(last)));
+      }
+      hits.forEach(function (hit) { plain(text.slice(from, hit.at)); piece(text.slice(hit.at, hit.end), hit.ids); from = hit.end; });
+      plain(text.slice(from));
+      n.parentNode.replaceChild(wrap, n);
+    });
+  }
+  function luUnwrap(card) {
+    Array.prototype.forEach.call(card.querySelectorAll('.lu-tmp'), function (x) { x.parentNode.removeChild(x); });
+    Array.prototype.forEach.call(card.querySelectorAll('select[data-lu]'), function (x) { x.removeAttribute('data-lu'); });
+    Array.prototype.forEach.call(card.querySelectorAll('.lu-t'), function (x) {
+      var p = x.parentNode; p.replaceChild(document.createTextNode(x.textContent), x); p.normalize();
+    });
+  }
+  function luSet(card, on) {
+    var L = card.__lu; if (!!L.on === !!on) return;
+    L.on = !!on;
+    luQuiet(card, function () {
+      L.btn.textContent = on ? 'Done' : 'Look up a word';
+      L.btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      L.hint.hidden = !on;
+      card.classList.toggle('is-lookup', !!on);
+      if (on) luWrap(card); else { luUnwrap(card); luClose(); }
+    });
+  }
+  function luCloseOnOutside(e) { if (LU_POP && !LU_POP.contains(e.target) && !(e.target.closest && e.target.closest('.lu-w,.lu-later'))) luClose(); }
+  function luKey(e) { if (e.key === 'Escape') luClose(); }
+  function luClose() {
+    if (LU_POP && LU_POP.parentNode) LU_POP.parentNode.removeChild(LU_POP);
+    LU_POP = null;
+    document.removeEventListener('keydown', luKey); document.removeEventListener('click', luCloseOnOutside, true);
+  }
+  function dict(word, kind) { return 'https://dictionary.cambridge.org/search/direct/?datasetsearch=' + kind + '&q=' + encodeURIComponent(String(word).toLowerCase()); }
+  /* the meaning box: at the foot of the screen, over nothing the pupil needs while reading it */
+  function luShow(card, word, ids) {
+    luClose();
+    var L = card.__lu, K = kwAll(), done = card.dataset.done === '1';
+    var secret = !done && (ids.some(function (id) { return L.secret.ids[id]; }) || L.secret.words.indexOf(T.norm(word)) >= 0);
+    var box = h('div', 'lu-pop'); box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'The meaning of ' + word);
+    var html = '<button type="button" class="lu-pop__x" aria-label="Close">✕</button>';
+    var known = ids.filter(function (id) { return K[id]; });
+    known.forEach(function (id) {
+      var x = K[id], u = x.uid && META.units[x.uid], later = L.later && L.later[id];
+      var where = u ? 'Topic ' + T.esc(u.n) + ': ' + T.esc(u.title) + ' (Year ' + T.esc(String(u.year)) + ')' : x.ib ? 'Beyond IGCSE: an IB word' : x.gl ? 'From the labs’ glossary' : '';
+      html += '<div class="lu-pop__w"><p class="lu-pop__t"><b>' + T.esc(x.t) + '</b>' +
+        (!secret && x.ko && CFG.koreanGloss !== false ? ' <span class="words__ko" lang="ko">' + T.esc(x.ko) + '</span>' : '') +
+        addBtn(id) + (window.Say ? window.Say.html(sayTerm(x.t)) : '') + '</p>' +
+        (later ? '<p class="lu-pop__from">A word from a later topic. You will learn it in ' + where + '. For now, this is what it means:</p>'
+               : where ? '<p class="lu-pop__from">' + where + '</p>' : '') +
+        (secret ? '<p class="lu-pop__d">This word is part of the answer to this question, so its meaning shows after you check your answer.</p>'
+                : '<p class="lu-pop__d">' + T.esc(x.d) + '<span class="words__kodef kogloss" lang="ko" data-kid="' + T.esc(id) + '" hidden></span></p>') + '</div>';
+    });
+    if (!known.length) {
+      html += '<div class="lu-pop__w"><p class="lu-pop__t"><b>' + T.esc(word) + '</b></p>' +
+        (secret ? '<p class="lu-pop__d">This word is part of the answer to this question. Look it up after you check your answer.</p>'
+                : '<p class="lu-pop__d">This word is not in the keyword list, so it cannot go on your flashcards. The Cambridge Dictionary explains it:</p>' +
+                  '<p class="lu-pop__links"><a href="' + dict(word, 'english') + '" target="_blank" rel="noopener">English ↗</a>' +
+                  '<a href="' + dict(word, 'english-korean') + '" target="_blank" rel="noopener" lang="ko">English–Korean ↗</a></p>') + '</div>';
+    }
+    box.innerHTML = html;
+    box.addEventListener('click', function (e) {
+      if (e.target.closest('.lu-pop__x')) { luClose(); return; }
+      var ad = e.target.closest('.mw__add'); if (ad) toggleWord(ad.getAttribute('data-add'));
+    });
+    document.body.appendChild(box); LU_POP = box;
+    paintKo(box);
+    setTimeout(function () { document.addEventListener('click', luCloseOnOutside, true); }, 0);
+    document.addEventListener('keydown', luKey);
+    try { box.querySelector('.lu-pop__x').focus({ preventScroll: true }); } catch (e) {}
+  }
+  function dressCard(card, item, unit, done) {
+    if (!card || !card.querySelector) return;
+    var top = card.querySelector('.card__top');
+    var laterIds = ((META.later || {})[unit] || []), later = null;
+    if (laterIds.length) { later = {}; laterIds.forEach(function (id) { later[id] = 1; }); }
+    var L = card.__lu = { later: later, secret: answerOf(item), on: false, mo: null };
+    if (done) card.dataset.done = '1';
+    if (top) {
+      var bar = h('span', 'lu-bar'), b = h('button', 'lu-btn', 'Look up a word');
+      b.type = 'button'; b.setAttribute('aria-pressed', 'false');
+      bar.appendChild(b); top.appendChild(bar); L.btn = b;
+      L.hint = h('p', 'lu-hint', 'Tap a word to see what it means, and to add it to My words. Press <b>Done</b> to answer the question again.');
+      L.hint.hidden = true; top.parentNode.insertBefore(L.hint, top.nextSibling);
+      b.addEventListener('click', function (e) { e.stopPropagation(); luSet(card, !L.on); });
+    }
+    function open(el) {
+      var ids = (el.getAttribute('data-ids') || '').split(' ').filter(Boolean);
+      luShow(card, el.textContent, ids);
+    }
+    card.addEventListener('click', function (e) {
+      var t = e.target; if (!t || !t.closest) return;
+      if (t.closest('.lu-bar')) return;
+      var lw = t.closest('.lu-later') || (L.on && t.closest('.lu-w'));
+      if (lw) { e.preventDefault(); e.stopPropagation(); open(lw); return; }
+      if (!L.on) return;
+      if (t.closest('.card__foot,.card__next')) { luSet(card, false); return; }   /* Check, Next …: the question again */
+      if (t.closest('input,textarea')) return;
+      e.preventDefault(); e.stopPropagation();                                      /* while looking up, a tap chooses nothing */
+    }, true);
+    card.addEventListener('mousedown', function (e) { if (L.on && e.target && e.target.closest && e.target.closest('select')) e.preventDefault(); }, true);
+    card.addEventListener('keydown', function (e) {
+      var t = e.target;
+      if ((e.key === 'Enter' || e.key === ' ') && t && t.classList && (t.classList.contains('lu-later') || (L.on && t.classList.contains('lu-w')))) { e.preventDefault(); open(t); }
+    });
+    luQuiet(card, function () { luMarkLater(card); });
+    /* a check writes its feedback, an exam question its next step: mark the new text too (and, while looking up, wrap it) */
+    if (window.MutationObserver) {
+      var pend = false;
+      L.mo = new MutationObserver(function () {
+        if (pend) return; pend = true;
+        setTimeout(function () { pend = false; luQuiet(card, function () { luMarkLater(card); if (L.on) luWrap(card); }); }, 0);
+      });
+      L.mo.observe(card, { childList: true, subtree: true });
+    }
+  }
+
   /* ---- the records: words.save and words.mine (the labs script) ---- */
   function wordsOnList() { return !(wordsServer && wordsServer.onList === false) && !notListed(); }
   function queueWords(now) {
@@ -1708,13 +1971,14 @@
      ROUTING
      ============================================================ */
   function route() {
+    luClose();
     var hs = location.hash.replace(/^#\/?/, '');
     var p = hs.split('/');
     document.title = 'Bio English Lab — write IGCSE Biology answers that score';
     if (p[0] === 'u' && p[1]) { viewUnit(p[1]); }
     else if (p[0] === 's' && p[1]) { viewSet(decodeURIComponent(p[1]), p[2] ? (parseInt(p[2], 10) - 1) : null); }
     else if (p[0] === 'hw' && p[1]) { viewHomework(decodeURIComponent(p[1])); }
-    else if (p[0] === 'w' && p[1]) { viewWords(p[1]); }
+    else if (p[0] === 'w' && p[1]) { viewWords(p[1], p[2]); }
     else if (p[0] === 'review') { viewReview(); }
     else if (p[0] === 'roots') { viewRoots(); }
     else if (p[0] === 'my') { if (p[1] === 'cards') viewCards(p[2] === 'all'); else viewMy(); }

@@ -28,7 +28,8 @@ topic by topic, with the keywords every answer needs.
 | **Practise by topic** | Year 9, 10 and 11, organised as NLCS teaches them. Every topic has keyword, describe and explain sets, and most have a plan set too. |
 | **Learn where the words come from** | Every topic has an etymology set: the Greek and Latin parts its keywords are built from (*cardi-* heart, *hepat-* liver, *-cyte* cell), and new words to work out from them. Every part was checked in a dictionary, and the answer names it. |
 | **Answer without free writing** | Choose the answer that scores, choose the right words, build the sentence from pieces, fix weak words, cut the words that score nothing, put a chain in order, type the keyword, mark an answer as the examiner would, then answer a real exam question step by step: think, order, write. |
-| **Keep your own flashcards** | **My words**: press ＋ beside any word on a topic's keyword list, and the words you rate in your assessment reflections come too. Practise them as flashcards: the word with its UK and US sounds from the Cambridge Dictionary, then what it means; each answer puts the word in *I do not know these yet*, *I partly know these* or *I know these*. Signed in, the list is the same on every computer. |
+| **Look up a word** | Every question has **Look up a word**: tap any word on the card to see what it means, hear it, and add it to My words (a word that is not a keyword opens the Cambridge Dictionary, English or English–Korean). A word from a later topic (MRSA in Topic 1) has a dotted line under it: tap it for its meaning, and each topic's keyword page lists them. |
+| **Keep your own flashcards** | **My words**: press ＋ beside any word on a topic's keyword list or a word you look up on a question, and the words you rate in your assessment reflections come too. Practise them as flashcards: the word with its UK and US sounds from the Cambridge Dictionary, then what it means; each answer puts the word in *I do not know these yet*, *I partly know these* or *I know these*. Signed in, the list is the same on every computer. |
 | **See the model answer** | One line, one mark, with the keyword, the direction, the comparison, the data and the link each in their own colour. In a fill-the-gaps or exam-frame question the filled-in answer is the model answer, so the lines under it are headed **Mark scheme** (one mark a line). |
 
 > [!NOTE]
@@ -62,9 +63,13 @@ recordings it falls back on are in `assets/say/`, each under its own licence (`a
 - **Why the answers are not easy to read in the page.** They are scrambled, like a covered answer
   sheet. The page has to unscramble them to show the model answer after a try, so this stops casual
   peeking, not a determined programmer.
-- **Keywords typed with a slip of the finger** are accepted — but never when the slip makes another
-  biology word: *meiosis* for *mitosis*, *ilium* for *ileum*, *glycogen* for *glucagon* are marked
-  wrong.
+- **Keywords typed with a slip of the finger** are accepted — one slip in a word of 5–9 letters, two
+  in a longer one, none in a short word — but never when the slip makes another biology word:
+  *meiosis* for *mitosis*, *ilium* for *ileum*, *glycogen* for *glucagon* are marked wrong. An accepted
+  slip is still shown: the box turns amber and the right spelling appears beside it. British and
+  American spellings (*haemoglobin* and *hemoglobin*, *fibre* and *fiber*) are both simply right.
+- **Answers are kept** on the student's computer as they work, so a question opened again — even a
+  three-step exam question left halfway — shows their answer as they left it.
 - **Progress** is kept in the student's own browser. A signed-in student's progress is also sent to
   the teacher's spreadsheet, so homework can be checked and work carries on from another computer.
 
