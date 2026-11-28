@@ -53,6 +53,10 @@
    download", 9 Nov 2026), each clear by the rules in audio/CREDITS.md: exocytosis, endocytosis, kinase, and lactate the
    noun; the others keep their spelling guide and have no button. A page one folder down (glucose-to-atp/) loads ../js/say.js: DIR, the
    Commons folder, is worked out from this file's own address.
+   THE VARIATION LAB (Topic 18, 28 Nov 2026, the main session): its key words' hard parts joined the list, read the same
+   way (each recording 0.88-2.41 s): continuous, discontinuous, radiation, ionising (Cambridge's page "ionizing", the same
+   word), artificial selection (whole), resistance, survival, adaptive, sequence. Mutagen, ionizing radiation and
+   antibiotic resistance have no Cambridge page: mutagen keeps its spelling guide only; the phrases take their parts'.
    ============================================================ */
 (function (global) {
   'use strict';
@@ -256,6 +260,7 @@
     "triglyceride": ["try-GLIS-uh-ride", {}],
     "catalyst": ["KAT-uh-list", {}],
     "substrate": ["SUB-strayt", {}],
+    "specific": ["spuh-SIF-ik", {}],
     "diffusion": ["dih-FYOO-zhun", {}],
     "osmosis": ["oz-MOH-sis", {}],
     "hydrolysis": ["hy-DROL-uh-sis", {}],
@@ -673,7 +678,17 @@
     "muscle contraction": ["MUS-ul kun-TRAK-shun", {}],
     "protein synthesis": ["PROH-teen SIN-thuh-sis", {}],
     "nerve impulse": ["NERV IM-puls", {}],
-    "methylene blue": ["METH-uh-leen BLOO", {}]
+    "methylene blue": ["METH-uh-leen BLOO", {}],
+    "continuous": ["kun-TIN-yoo-us", {}],
+    "discontinuous": ["dis-kun-TIN-yoo-us", {}],
+    "radiation": ["ray-dee-AY-shun", {}],
+    "ionising": ["EYE-uh-ny-zing", {}],
+    "mutagen": ["MYOO-tuh-jen", {}],
+    "artificial selection": ["", {}],
+    "resistance": ["rih-ZIS-tunss", {}],
+    "survival": ["sur-VY-vul", {}],
+    "adaptive": ["uh-DAP-tiv", {}],
+    "sequence": ["SEE-kwunss", {}]
   };
   /* word: [its UK recording, its US recording, its page], each under https://dictionary.cambridge.org
      (/media/english/uk_pron/….mp3, /media/english/us_pron/….mp3, /dictionary/english/…) */
@@ -825,6 +840,7 @@
     "triglyceride": ["c/cdo/cdo11/cdo1121uktrig4211", "c/cdo/cdo11/cdo1121ustrig4315", "triglyceride"],
     "catalyst": ["u/ukc/ukcas/ukcaste019", "e/eus/eus70/eus70718", "catalyst"],
     "substrate": ["e/epd/epd26/epd26833", "e/eus/eus26/eus26350", "substrate"],
+    "specific": ["u/uks/ukspe/ukspeci008", "s/spe/speci/specific", "specific"],   /* the Enzymes Lab, 28 Nov 2026: UK 0.88 s, US 0.80 s */
     "diffusion": ["u/ukd/ukdif/ukdiffi011", "u/usd/usdif/usdiffi007", "diffusion"],
     "osmosis": ["u/uko/ukosc/ukoscil003", "e/eus/eus75/eus75314", "osmosis"],
     "hydrolysis": ["u/ukh/ukhyd/ukhydra010", "u/ush/ushun/ushunga026", "hydrolysis"],
@@ -1195,7 +1211,16 @@
     "expiration": ["c/cal/cald4/cald4uk0525", "c/cal/cald4/cald4us0789", "expiration"],
     "alcohol": ["u/uka/ukalb/ukalbin006", "a/alc/alcoh/alcohol", "alcohol"],
     "optimum": ["u/uko/ukopp/ukoppre017", "e/eus/eus75/eus75259", "optimum"],
-    "cell division": ["c/cdo/cdo06/cdo0623ukcell0435", "c/cdo/cdo06/cdo0623uscell0437", "cell-division"]
+    "cell division": ["c/cdo/cdo06/cdo0623ukcell0435", "c/cdo/cdo06/cdo0623uscell0437", "cell-division"],
+    "continuous": ["u/ukc/ukcon/ukconti001", "c/con/conti/continuous", "continuous"],
+    "discontinuous": ["u/ukd/ukdis/ukdisco002", "u/usd/usdis/usdisar026", "discontinuous"],
+    "radiation": ["u/ukr/ukrad/ukradia006", "r/rad/radia/radiation", "radiation"],
+    "ionising": ["u/uki/ukiod/ukiodin006", "u/usi/usinv/usinves023", "ionizing"],
+    "artificial selection": ["c/cdo/cdo03/cdo0317artiuk0231", "c/cdo/cdo03/cdo0318usarti0276", "artificial-selection"],
+    "resistance": ["u/ukr/ukres/ukresid013", "r/res/resis/resistance", "resistance"],
+    "survival": ["u/uks/uksur/uksurro013", "s/sur/survi/survival", "survival"],
+    "adaptive": ["u/uka/ukada/ukadapt004", "u/usa/usacq/usacqui018", "adaptive"],
+    "sequence": ["u/uks/uksep/uksept_010", "s/seq/seque/sequence", "sequence"]
   };
   function camUrl(w, acc) { var c = CAM[w]; return CAM_HOST + '/media/english/' + acc + '_pron/' + c[acc === 'uk' ? 0 : 1] + '.mp3'; }
   function camPage(w) { return CAM_HOST + '/dictionary/english/' + CAM[w][2]; }
